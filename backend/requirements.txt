@@ -1,0 +1,14 @@
+fastapi
+uvicorn
+sqlalchemy
+psycopg2-binary
+pyjwt
+deepface
+mtcnn
+numpy
+opencv-python-headless
+scipy
+python-dotenv
+passlib
+bcrypt
+python-multipart
