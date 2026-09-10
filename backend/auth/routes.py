@@ -16,7 +16,7 @@ async def api_signup(request: Request, db: Session = Depends(get_db)):
     username = data.get('username')
     email = data.get('email')
     password = data.get('password')
-    user_type = data.get('userType', 'student')
+    user_type = (data.get('userType') or data.get('role') or 'student').lower().strip()
 
     if not all([username, email, password]):
         return JSONResponse(status_code=400, content={"success": False, "error": "All fields required"})
@@ -26,8 +26,8 @@ async def api_signup(request: Request, db: Session = Depends(get_db)):
 
     if user_type == 'teacher':
         model = AuthTeacher
-        employee_id = data.get('employeeId')
-        department = data.get('department')
+        employee_id = data.get('employeeId') or data.get('employee_id') or username
+        department = data.get('department') or 'General'
         if not employee_id:
             return JSONResponse(status_code=400, content={"success": False, "error": "Employee ID required for teachers"})
     else:
@@ -67,27 +67,72 @@ async def api_signup(request: Request, db: Session = Depends(get_db)):
 @auth_router.post('/api/signin')
 async def api_signin(request: Request, db: Session = Depends(get_db)):
     data = await request.json()
-    email = data.get('email')
+    identifier = (
+        data.get('email') or 
+        data.get('username') or 
+        data.get('employeeId') or 
+        data.get('identifier') or 
+        ''
+    ).strip()
     password = data.get('password')
-    user_type = data.get('userType', 'student')
+    user_type = (data.get('userType') or data.get('role') or 'student').lower().strip()
 
-    if not all([email, password]):
-        return JSONResponse(status_code=400, content={"success": False, "error": "Email and password required"})
+    if not all([identifier, password]):
+        return JSONResponse(status_code=400, content={"success": False, "error": "Email/ID and password required"})
 
     if user_type == 'admin':
-        model = AuthAdmin
         user_role = "admin"
+        user = db.query(AuthAdmin).filter(
+            (AuthAdmin.email.ilike(identifier)) |
+            (AuthAdmin.username.ilike(identifier))
+        ).first()
     elif user_type == 'teacher':
-        model = AuthTeacher
         user_role = "teacher"
-    else:
-        model = AuthUser
-        user_role = "student"
+        # Search by email, username, OR employee_id
+        user = db.query(AuthTeacher).filter(
+            (AuthTeacher.email.ilike(identifier)) |
+            (AuthTeacher.username.ilike(identifier)) |
+            (AuthTeacher.employee_id.ilike(identifier))
+        ).first()
 
-    user = db.query(model).filter_by(email=email).first()
+        # Fallback auto-heal: check if user registered as student by mistake during signup
+        if not user:
+            student_user = db.query(AuthUser).filter(
+                (AuthUser.email.ilike(identifier)) |
+                (AuthUser.username.ilike(identifier))
+            ).first()
+            if student_user:
+                # Migrate or copy to AuthTeacher
+                user = AuthTeacher(
+                    username=student_user.username,
+                    email=student_user.email,
+                    password=student_user.password,
+                    employee_id=student_user.username,
+                    department="General",
+                    role="teacher",
+                    status="active",
+                    created_at=student_user.created_at or time.time(),
+                )
+                db.add(user)
+                db.commit()
+                db.refresh(user)
+    else:
+        user_role = "student"
+        user = db.query(AuthUser).filter(
+            (AuthUser.email.ilike(identifier)) |
+            (AuthUser.username.ilike(identifier))
+        ).first()
+        if not user:
+            # Also check if student entered student_id (e.g. STU123)
+            stu = db.query(Student).filter(Student.student_id.ilike(identifier)).first()
+            if stu and stu.email:
+                user = db.query(AuthUser).filter(AuthUser.email.ilike(stu.email)).first()
 
     if not user:
-        return JSONResponse(status_code=401, content={"success": False, "error": f"No {user_type} account found with this email"})
+        return JSONResponse(
+            status_code=401, 
+            content={"success": False, "error": f"No {user_type} account found matching '{identifier}'"}
+        )
 
     if not bcrypt.checkpw(password.encode('utf-8'), user.password.encode('utf-8')):
         return JSONResponse(status_code=401, content={"success": False, "error": "Invalid password"})
@@ -105,16 +150,19 @@ async def api_signin(request: Request, db: Session = Depends(get_db)):
 
     if user_type == 'teacher':
         user_info.update({
-            "employeeId": user.employee_id,
-            "department": user.department,
+            "employeeId": user.employee_id or user.username,
+            "department": user.department or "General",
             "name": user.username
         })
-        student_record = db.query(Student).filter_by(email=email).first()
+        student_record = db.query(Student).filter_by(email=user.email).first()
         if student_record:
             user_info['hasStudentRecord'] = True
             user_info['studentId'] = student_record.student_id
     elif user_type == 'student':
-        student_record = db.query(Student).filter_by(email=email).first()
+        student_record = db.query(Student).filter(
+            (Student.email.ilike(user.email)) |
+            (Student.student_id.ilike(user.username))
+        ).first()
         if student_record:
             user_info.update({
                 "studentId": student_record.student_id,
@@ -122,8 +170,13 @@ async def api_signin(request: Request, db: Session = Depends(get_db)):
                 "department": student_record.department,
                 "hasStudentRecord": True
             })
+        else:
+            user_info["hasStudentRecord"] = False
 
-    token = issue_token(user.id, user.email, user_role)
+    user_dept = getattr(user, 'department', None)
+    if user_type == 'student' and 'student_record' in locals() and student_record:
+        user_dept = student_record.department
+    token = issue_token(user.id, user.email, user_role, department=user_dept)
 
     return {
         "success": True,
@@ -186,7 +239,8 @@ async def switch_user_role(
             "department": target_user.department
         })
 
-    token = issue_token(target_user.id, target_user.email, target_type)
+    user_dept = getattr(target_user, 'department', None)
+    token = issue_token(target_user.id, target_user.email, target_type, department=user_dept)
 
     return {
         "success": True,

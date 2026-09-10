@@ -5,7 +5,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
 from database import get_db
-from models import AttendanceRecord, Student
+from models import AttendanceRecord, Student, AuthUser
 from auth_utils import require_auth
 
 attendance_router = APIRouter()
@@ -39,13 +39,44 @@ async def get_attendance(
     student_id = request.query_params.get('student_id')
 
     try:
+        # Resolve student_id if it's an AuthUser username or email
+        actual_student_id = student_id
+        student_obj = None
+        if student_id:
+            student_obj = db.query(Student).filter(
+                (Student.student_id == student_id) | (Student.email == student_id)
+            ).first()
+            if not student_obj:
+                au = db.query(AuthUser).filter(
+                    (AuthUser.username == student_id) | (AuthUser.email == student_id)
+                ).first()
+                if au and au.email:
+                    student_obj = db.query(Student).filter(Student.email == au.email).first()
+            if student_obj:
+                actual_student_id = student_obj.student_id
+
         # If student_id is provided without a specific date (e.g. Student Dashboard),
         # retrieve all attendance records across all sessions for that student over the semester.
         if student_id and not date:
-            student_obj = db.query(Student).filter(Student.student_id == student_id).first()
-            s_dept = department or (student_obj.department if student_obj else None)
-            s_year = year or (student_obj.year if student_obj else None)
-            s_div = division or (student_obj.division if student_obj else None)
+            if not student_obj:
+                # Student account exists in auth, but has not completed student registration / face enrollment yet
+                return {
+                    "success": True,
+                    "registered": False,
+                    "message": "Student profile not registered yet",
+                    "attendance": [],
+                    "stats": {
+                        "totalStudents": 0,
+                        "totalClasses": 0,
+                        "presentToday": 0,
+                        "absentToday": 0,
+                        "attendanceRate": 0.0
+                    }
+                }
+
+            s_dept = department or student_obj.department
+            s_year = year or student_obj.year
+            s_div = division or student_obj.division
 
             sess_query = db.query(AttendanceRecord)
             if s_dept:
@@ -64,13 +95,14 @@ async def get_attendance(
             for sess in sessions:
                 found = False
                 for entry in (sess.students or []):
-                    if str(entry.get("student_id")) == str(student_id):
+                    entry_sid = str(entry.get("student_id") or "")
+                    if entry_sid in [str(student_id), str(actual_student_id)]:
                         found = True
                         present = bool(entry.get("present"))
                         if present:
                             present_count += 1
                         attendance_list.append({
-                            "studentId": str(student_id),
+                            "studentId": str(actual_student_id or student_id),
                             "studentName": entry.get("student_name") or (student_obj.student_name if student_obj else ""),
                             "date": str(sess.date),
                             "subject": str(sess.subject),
@@ -84,7 +116,7 @@ async def get_attendance(
                         break
                 if not found:
                     attendance_list.append({
-                        "studentId": str(student_id),
+                        "studentId": str(actual_student_id or student_id),
                         "studentName": student_obj.student_name if student_obj else f"Student {student_id}",
                         "date": str(sess.date),
                         "subject": str(sess.subject),
@@ -134,7 +166,7 @@ async def get_attendance(
             if not sid or sid in seen_students:
                 continue
             seen_students.add(sid)
-            if student_id and sid != student_id:
+            if student_id and sid not in [student_id, actual_student_id]:
                 continue
 
             sess = session_map.get(sid, None)
@@ -163,7 +195,7 @@ async def get_attendance(
                 sid = s.get("student_id")
                 if sid in seen_students:
                     continue
-                if student_id and sid != student_id:
+                if student_id and sid not in [student_id, actual_student_id]:
                     continue
                 seen_students.add(sid)
                 marked = s.get("marked_at")

@@ -6,13 +6,22 @@ import { apiFetch } from '../../lib/api.js'
 
 export default function StartSession() {
   const navigate = useNavigate()
+  const userType = localStorage.getItem('userType') || ''
+  const teacherDept = userType === 'teacher' ? (localStorage.getItem('department') || '') : ''
+
   const [sessionId, setSessionId] = useState(null)
   const [sessionActive, setSessionActive] = useState(false)
   const [recognitionStarted, setRecognitionStarted] = useState(false)
   const [status, setStatus] = useState('')
   const [facesData, setFacesData] = useState([])
   const [recognizedStudents, setRecognizedStudents] = useState([])
-  const [form, setForm] = useState({ date: '', subject: '', department: '', year: '', division: '' })
+  const [form, setForm] = useState({ 
+    date: '', 
+    subject: '', 
+    department: teacherDept || '', 
+    year: '', 
+    division: '' 
+  })
 
   const departments = ['Computer Science', 'Information Technology', 'Electronics', 'Mechanical', 'Civil']
   const years = ['1st Year', '2nd Year', '3rd Year', '4th Year']
@@ -21,13 +30,15 @@ export default function StartSession() {
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value })
 
   const createSession = async () => {
-    if (!form.date || !form.subject || !form.department || !form.year || !form.division) {
+    const activeDept = teacherDept || form.department
+    if (!form.date || !form.subject || !activeDept || !form.year || !form.division) {
       setStatus('Please fill all fields')
       return
     }
     setStatus('Creating session...')
     try {
-      const res = await apiFetch('/api/attendance/create_session', { method: 'POST', body: JSON.stringify(form) })
+      const payload = { ...form, department: activeDept }
+      const res = await apiFetch('/api/attendance/create_session', { method: 'POST', body: JSON.stringify(payload) })
       const data = await res.json()
       if (data.session_id) {
         setSessionId(data.session_id)
@@ -59,7 +70,7 @@ export default function StartSession() {
           setStatus(`✅ Recognized ${face.match.name}`)
           setRecognizedStudents(prev => prev.includes(face.match.name) ? prev : [...prev, face.match.name])
         } else {
-          setStatus('❌ Face not recognized')
+          setStatus(face.message ? `⚠️ ${face.message}` : '❌ Face not recognized')
         }
         setFacesData(data.faces.map(f => ({ box: f.box, match: f.match })))
       } else {
@@ -187,11 +198,24 @@ export default function StartSession() {
                 </div>
 
                 <div>
-                  <label className={labelCls}>Department</label>
-                  <select name="department" value={form.department} onChange={handleChange} className={selectCls}>
-                    <option value="">Select Department</option>
-                    {departments.map(d => <option key={d} value={d}>{d}</option>)}
-                  </select>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className={labelCls}>Department</label>
+                    {teacherDept && (
+                      <span className="text-xs text-blue-600 dark:text-blue-400 font-medium">
+                        🔒 Locked to your department
+                      </span>
+                    )}
+                  </div>
+                  {teacherDept ? (
+                    <div className="flex items-center bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-xl px-4 py-3 text-gray-900 dark:text-white font-medium text-sm">
+                      <span>{teacherDept}</span>
+                    </div>
+                  ) : (
+                    <select name="department" value={form.department} onChange={handleChange} className={selectCls}>
+                      <option value="">Select Department</option>
+                      {departments.map(d => <option key={d} value={d}>{d}</option>)}
+                    </select>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">

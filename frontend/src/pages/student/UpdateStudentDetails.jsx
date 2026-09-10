@@ -32,6 +32,7 @@ export default function UpdateStudentDetails() {
   const [isAuthed, setIsAuthed] = useState(null)
   const [userType, setUserType] = useState('student')
   const [userEmail, setUserEmail] = useState('')
+  const [teacherDept, setTeacherDept] = useState('')
   const isStaff = userType === 'teacher' || userType === 'admin'
   const [filters, setFilters] = useState({ department: '', year: '', division: '', studentId: '', search: '' })
 
@@ -46,8 +47,13 @@ export default function UpdateStudentDetails() {
       const loggedIn = localStorage.getItem('isLoggedIn') === 'true'
       const email = localStorage.getItem('userEmail') || ''
       const utype = localStorage.getItem('userType') || 'student'
+      const dept = utype === 'teacher' ? (localStorage.getItem('department') || '') : ''
       setUserType(utype)
       setUserEmail(email)
+      setTeacherDept(dept)
+      if (dept) {
+        setFilters(prev => ({ ...prev, department: dept }))
+      }
       if (!loggedIn || !email) { setIsAuthed(false); navigate('/signin'); return }
       setIsAuthed(true)
       fetchStudents(email, utype)
@@ -57,7 +63,8 @@ export default function UpdateStudentDetails() {
   useEffect(() => {
     if (isStaff && allStudents.length > 0) {
       let filtered = allStudents
-      if (filters.department) filtered = filtered.filter(s => s.department === filters.department)
+      const activeDept = teacherDept || filters.department
+      if (activeDept) filtered = filtered.filter(s => s.department === activeDept)
       if (filters.year) filtered = filtered.filter(s => s.year === filters.year)
       if (filters.division) filtered = filtered.filter(s => s.division === filters.division)
       if (filters.studentId) filtered = filtered.filter(s => s.studentId?.toLowerCase().includes(filters.studentId.toLowerCase()))
@@ -67,7 +74,7 @@ export default function UpdateStudentDetails() {
       )
       setStudents(filtered)
     }
-  }, [filters, allStudents, isStaff])
+  }, [filters, allStudents, isStaff, teacherDept])
 
   const fetchStudents = async (email, type) => {
     try {
@@ -85,7 +92,7 @@ export default function UpdateStudentDetails() {
   }
 
   const handleFilterChange = e => setFilters(prev => ({ ...prev, [e.target.name]: e.target.value }))
-  const clearFilters = () => setFilters({ department: '', year: '', division: '', studentId: '', search: '' })
+  const clearFilters = () => setFilters({ department: teacherDept || '', year: '', division: '', studentId: '', search: '' })
   const handleStudentSelect = student => { setSelectedStudent({ ...student }); setStatus({ msg: '', type: '' }) }
   const handleInputChange = e => {
     if (selectedStudent) setSelectedStudent(prev => ({ ...prev, [e.target.name]: e.target.value }))
@@ -142,31 +149,31 @@ export default function UpdateStudentDetails() {
     info: 'bg-blue-50 border-blue-200 text-blue-700',
   }
 
-  const inputCls = 'w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-gray-800 text-base focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all'
-  const selectCls = 'w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-gray-700 text-base focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all'
-  const labelCls = 'block text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2'
+  const inputCls = 'w-full bg-white border-2 border-slate-300 hover:border-slate-400 focus:border-blue-600 rounded-2xl px-4 py-2.5 text-slate-900 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-100 transition-all placeholder:text-slate-400 shadow-xs'
+  const selectCls = 'w-full bg-white border-2 border-slate-300 hover:border-slate-400 focus:border-blue-600 rounded-2xl px-4 py-2.5 text-slate-900 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-100 transition-all shadow-xs cursor-pointer'
+  const labelCls = 'block text-xs font-bold text-slate-700 uppercase tracking-wide mb-1.5'
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ background: '#eef2fb' }}>
+    <div className="min-h-screen flex flex-col bg-slate-100">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 shadow-sm flex-shrink-0">
+      <header className="bg-white border-b-2 border-slate-200 shadow-xs flex-shrink-0">
         <div className="px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-600 rounded-xl">
+            <div className="p-2.5 bg-blue-600 rounded-2xl shadow-xs">
               <Edit3 className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-gray-800">
+              <h1 className="text-xl font-black text-slate-900">
                 {isStaff ? 'Manage Student Details' : 'Update Student Details'}
               </h1>
-              <p className="text-base text-gray-500">
+              <p className="text-sm font-medium text-slate-500">
                 {isStaff ? 'View and update student information' : 'Update your student information'}
               </p>
             </div>
           </div>
           <button
             onClick={() => navigate(dashboardPath)}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-base font-medium transition-colors shadow-sm"
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-sm font-bold transition-colors shadow-xs"
           >
             <LayoutDashboard className="w-4 h-4" />
             Dashboard
@@ -175,28 +182,35 @@ export default function UpdateStudentDetails() {
       </header>
 
       <main className="flex-1 p-6 overflow-hidden">
-        <div className="max-w-7xl mx-auto h-full flex flex-col gap-4">
+        <div className="max-w-7xl mx-auto h-full flex flex-col gap-5">
 
-          {/* Filter Bar â€” staff only */}
+          {/* Filter Bar — staff only */}
           {isStaff && (
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 flex-shrink-0">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2 text-gray-700 font-semibold text-base">
-                  <Filter className="w-4 h-4 text-blue-500" />
+            <div className="bg-white rounded-3xl shadow-md border-2 border-slate-300 p-5 flex-shrink-0">
+              <div className="flex items-center justify-between mb-3.5 pb-2.5 border-b-2 border-slate-100">
+                <div className="flex items-center gap-2 text-slate-900 font-bold text-base">
+                  <Filter className="w-4 h-4 text-blue-600" />
                   Filter Students
                 </div>
                 <button
                   onClick={clearFilters}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors"
+                  className="flex items-center gap-1.5 px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-xs transition-colors"
                 >
-                  <X className="w-3 h-3" /> Clear All Filters
+                  <X className="w-3.5 h-3.5" /> Clear All Filters
                 </button>
               </div>
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-                <select name="department" value={filters.department} onChange={handleFilterChange} className={selectCls}>
-                  <option value="">All Departments</option>
-                  {departments.map(d => <option key={d} value={d}>{d}</option>)}
-                </select>
+                {teacherDept ? (
+                  <div className="flex items-center justify-between bg-blue-50 border-2 border-blue-400 rounded-2xl px-3.5 py-2 text-blue-950 text-sm font-bold shadow-xs">
+                    <span className="truncate">{teacherDept}</span>
+                    <span className="text-[10px] bg-blue-600 text-white font-extrabold px-2 py-0.5 rounded-lg uppercase tracking-wider ml-1.5 shrink-0">Locked</span>
+                  </div>
+                ) : (
+                  <select name="department" value={filters.department} onChange={handleFilterChange} className={selectCls}>
+                    <option value="">All Departments</option>
+                    {departments.map(d => <option key={d} value={d}>{d}</option>)}
+                  </select>
+                )}
                 <select name="year" value={filters.year} onChange={handleFilterChange} className={selectCls}>
                   <option value="">All Years</option>
                   {years.map(y => <option key={y} value={y}>{y}</option>)}
@@ -206,27 +220,27 @@ export default function UpdateStudentDetails() {
                   {divisions.map(d => <option key={d} value={d}>{d}</option>)}
                 </select>
                 <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                   <input name="studentId" placeholder="Student ID" value={filters.studentId} onChange={handleFilterChange}
-                    className={inputCls + ' pl-9'} />
+                    className={inputCls + ' pl-10'} />
                 </div>
                 <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                   <input name="search" placeholder="Search by name or email" value={filters.search} onChange={handleFilterChange}
-                    className={inputCls + ' pl-9'} />
+                    className={inputCls + ' pl-10'} />
                 </div>
               </div>
-              <div className="mt-3 flex items-center gap-1.5 text-sm text-gray-500">
-                <Users className="w-3.5 h-3.5 text-green-500" />
-                Showing <span className="font-semibold text-gray-700">{students.length}</span> of <span className="font-semibold text-gray-700">{allStudents.length}</span> students
+              <div className="mt-3.5 flex items-center gap-2 text-xs font-semibold text-slate-700 bg-slate-100 border border-slate-300 px-3 py-1.5 rounded-xl w-fit">
+                <Users className="w-4 h-4 text-emerald-600" />
+                <span>Showing <strong className="text-slate-900 font-bold">{students.length}</strong> of <strong className="text-slate-900 font-bold">{allStudents.length}</strong> students</span>
               </div>
             </div>
           )}
 
           {/* Status bar */}
           {status.msg && (
-            <div className={`rounded-xl border px-4 py-3 text-sm font-medium flex-shrink-0 ${statusBg[status.type] || statusBg.info}`}>
-              {status.type === 'success' && 'âœ… '}{status.type === 'error' && 'âŒ '}{status.msg}
+            <div className={`rounded-2xl border-2 px-4 py-3 text-sm font-bold flex-shrink-0 shadow-xs ${statusBg[status.type] || statusBg.info}`}>
+              {status.type === 'success' && '✅ '}{status.type === 'error' && '❌ '}{status.msg}
             </div>
           )}
 
@@ -234,29 +248,32 @@ export default function UpdateStudentDetails() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 flex-1 min-h-0">
 
             {/* Student List */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col overflow-hidden">
-              <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-2">
-                <Users className="w-4 h-4 text-blue-600" />
-                <h2 className="font-semibold text-gray-800 text-base">
-                  {isStaff ? 'Students' : 'Student Record'}
-                </h2>
+            <div className="bg-white rounded-3xl shadow-md border-2 border-slate-300 flex flex-col overflow-hidden">
+              <div className="px-5 py-3.5 border-b-2 border-slate-200 bg-slate-50 flex items-center justify-between">
+                <div className="flex items-center gap-2 text-slate-900 font-bold text-base">
+                  <Users className="w-5 h-5 text-blue-600" />
+                  <span>{isStaff ? 'Students' : 'Student Record'}</span>
+                </div>
+                <span className="text-xs bg-slate-200 text-slate-800 font-bold px-2 py-0.5 rounded-lg">
+                  {students.length} Total
+                </span>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-3 space-y-2">
+              <div className="flex-1 overflow-y-auto p-4 space-y-3">
                 {loading ? (
                   <div className="text-center py-12">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-3" />
-                    <p className="text-gray-500 text-sm">Loading records...</p>
+                    <p className="text-slate-600 font-semibold text-sm">Loading records...</p>
                   </div>
                 ) : students.length === 0 ? (
-                  <div className="text-center py-12">
-                    <div className="text-4xl mb-3">ðŸ“š</div>
-                    <p className="text-gray-500 text-sm mb-4">
+                  <div className="text-center py-12 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 m-2">
+                    <div className="text-4xl mb-2">📚</div>
+                    <p className="text-slate-700 font-bold text-sm mb-3">
                       {isStaff ? 'No students found with current filters.' : 'No student record found for your email.'}
                     </p>
                     {userType === 'student' && (
                       <button onClick={() => navigate('/student/registrationform')}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-xl text-sm hover:bg-blue-700 transition-colors">
+                        className="px-4 py-2 bg-blue-600 text-white font-bold rounded-2xl text-xs hover:bg-blue-700 shadow-sm transition-colors">
                         Register as Student
                       </button>
                     )}
@@ -268,43 +285,43 @@ export default function UpdateStudentDetails() {
                       <div
                         key={student._id}
                         onClick={() => handleStudentSelect(student)}
-                        className={`group relative flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all border ${
+                        className={`group relative flex items-center gap-3.5 p-3.5 rounded-2xl cursor-pointer transition-all border-2 ${
                           selected
-                            ? 'bg-blue-50 border-blue-300 shadow-sm'
-                            : 'bg-gray-50 border-gray-100 hover:bg-blue-50/50 hover:border-blue-200'
+                            ? 'bg-blue-50/90 border-blue-600 shadow-md ring-2 ring-blue-200'
+                            : 'bg-white border-slate-200 hover:border-blue-400 hover:bg-blue-50/40 hover:shadow-sm'
                         }`}
                       >
                         {/* Avatar */}
-                        <div className={`flex-shrink-0 w-10 h-10 rounded-xl ${getAvatarColor(student.studentId)} flex items-center justify-center text-white font-bold text-sm`}>
+                        <div className={`flex-shrink-0 w-11 h-11 rounded-2xl ${getAvatarColor(student.studentId)} flex items-center justify-center text-white font-black text-sm shadow-xs`}>
                           {getInitials(student.studentName)}
                         </div>
 
                         {/* Info */}
                         <div className="flex-1 min-w-0">
-                          <div className={`font-semibold text-base truncate ${selected ? 'text-blue-700' : 'text-gray-800'}`}>
+                          <div className={`font-bold text-base truncate ${selected ? 'text-blue-900' : 'text-slate-900'}`}>
                             {student.studentName}
                           </div>
-                          <div className="text-base text-gray-500 truncate">
-                            {student.studentId} Â· {student.department}
+                          <div className="text-sm font-semibold text-slate-600 truncate mt-0.5">
+                            <span className="font-bold text-slate-800">{student.studentId}</span> • <span>{student.department}</span>
                           </div>
-                          <div className="flex items-center gap-1.5 mt-1">
-                            <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-md font-medium">{student.year}</span>
-                            <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-md font-medium">Div {student.division}</span>
+                          <div className="flex items-center gap-2 mt-1.5">
+                            <span className="text-xs bg-slate-100 border border-slate-300 text-slate-800 px-2.5 py-0.5 rounded-lg font-bold shadow-2xs">{student.year}</span>
+                            <span className="text-xs bg-slate-100 border border-slate-300 text-slate-800 px-2.5 py-0.5 rounded-lg font-bold shadow-2xs">Div {student.division}</span>
                           </div>
                         </div>
 
                         {/* Arrow / Delete */}
-                        <div className="flex items-center gap-1 flex-shrink-0">
-                          {(isStaff || (userType === 'student' && student.email === userEmail)) && (
+                        <div className="flex items-center gap-1.5 flex-shrink-0">
+                          {((userType === 'admin') || (userType === 'student' && student.email === userEmail)) && (
                             <button
                               onClick={e => { e.stopPropagation(); handleDelete(student._id, student.studentName) }}
-                              className="p-1.5 rounded-lg text-red-400 hover:bg-red-100 hover:text-red-600 transition-colors opacity-0 group-hover:opacity-100"
+                              className="p-2 rounded-xl text-red-500 hover:bg-red-100 hover:text-red-700 transition-colors opacity-0 group-hover:opacity-100"
                               title="Delete"
                             >
-                              <Trash2 className="w-3.5 h-3.5" />
+                              <Trash2 className="w-4 h-4" />
                             </button>
                           )}
-                          <ChevronRight className={`w-4 h-4 transition-colors ${selected ? 'text-blue-400' : 'text-gray-300 group-hover:text-gray-400'}`} />
+                          <ChevronRight className={`w-5 h-5 transition-colors ${selected ? 'text-blue-600' : 'text-slate-400 group-hover:text-slate-600'}`} />
                         </div>
                       </div>
                     )
@@ -314,10 +331,10 @@ export default function UpdateStudentDetails() {
             </div>
 
             {/* Edit Form */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col overflow-hidden">
-              <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-2">
-                <Edit3 className="w-4 h-4 text-emerald-600" />
-                <h2 className="font-semibold text-gray-800 text-base">Update Student Details</h2>
+            <div className="bg-white rounded-3xl shadow-md border-2 border-slate-300 flex flex-col overflow-hidden">
+              <div className="px-5 py-3.5 border-b-2 border-slate-200 bg-slate-50 flex items-center gap-2">
+                <Edit3 className="w-5 h-5 text-emerald-600" />
+                <h2 className="font-bold text-slate-900 text-base">Update Student Details</h2>
               </div>
 
               {selectedStudent ? (
@@ -325,15 +342,15 @@ export default function UpdateStudentDetails() {
 
                   {/* Personal Info */}
                   <div>
-                    <div className="flex items-center gap-2 mb-3">
-                      <User className="w-4 h-4 text-blue-500" />
-                      <span className="text-sm font-bold text-gray-500 uppercase tracking-wider">Personal Information</span>
+                    <div className="flex items-center gap-2 mb-3 pb-2 border-b-2 border-slate-100">
+                      <User className="w-4 h-4 text-blue-600" />
+                      <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">Personal Information</span>
                     </div>
-                    <div className="grid grid-cols-1 gap-3">
+                    <div className="grid grid-cols-1 gap-3.5">
                       <div>
                         <label className={labelCls}>Full Name</label>
                         <div className="relative">
-                          <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                          <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                           <input name="studentName" type="text" value={selectedStudent.studentName || ''} onChange={handleInputChange} required
                             className={inputCls + ' pl-10'} placeholder="Full name" />
                         </div>
@@ -341,7 +358,7 @@ export default function UpdateStudentDetails() {
                       <div>
                         <label className={labelCls}>Student ID</label>
                         <div className="relative">
-                          <IdCard className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                          <IdCard className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                           <input name="studentId" type="text" value={selectedStudent.studentId || ''} onChange={handleInputChange} required
                             className={inputCls + ' pl-10'} placeholder="Student ID" />
                         </div>
@@ -349,17 +366,17 @@ export default function UpdateStudentDetails() {
                       <div>
                         <label className={labelCls}>Email</label>
                         <div className="relative">
-                          <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                          <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                           <input name="email" type="email" value={selectedStudent.email || ''} onChange={handleInputChange}
                             disabled={userType === 'student'}
-                            className={inputCls + ' pl-10 ' + (userType === 'student' ? 'bg-gray-50 text-gray-400 cursor-not-allowed' : '')}
+                            className={inputCls + ' pl-10 ' + (userType === 'student' ? 'bg-slate-100 text-slate-500 cursor-not-allowed border-slate-200' : '')}
                             placeholder="Email address" />
                         </div>
                       </div>
                       <div>
                         <label className={labelCls}>Phone Number</label>
                         <div className="relative">
-                          <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                          <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                           <input name="phoneNumber" type="tel" value={selectedStudent.phoneNumber || ''} onChange={handleInputChange}
                             className={inputCls + ' pl-10'} placeholder="Phone number" />
                         </div>
@@ -369,17 +386,28 @@ export default function UpdateStudentDetails() {
 
                   {/* Academic Info */}
                   <div>
-                    <div className="flex items-center gap-2 mb-3">
-                      <GraduationCap className="w-4 h-4 text-purple-500" />
-                      <span className="text-sm font-bold text-gray-500 uppercase tracking-wider">Academic Information</span>
+                    <div className="flex items-center gap-2 mb-3 pb-2 border-b-2 border-slate-100">
+                      <GraduationCap className="w-4 h-4 text-purple-600" />
+                      <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">Academic Information</span>
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-2 gap-3.5">
                       <div>
-                        <label className={labelCls}>Department</label>
-                        <select name="department" value={selectedStudent.department || ''} onChange={handleInputChange} required className={selectCls}>
-                          <option value="">Select</option>
-                          {departments.map(d => <option key={d} value={d}>{d}</option>)}
-                        </select>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <label className={labelCls}>Department</label>
+                          {userType === 'teacher' && (
+                            <span className="text-xs text-slate-500 font-bold">🔒 Read-only</span>
+                          )}
+                        </div>
+                        {userType === 'teacher' ? (
+                          <div className="w-full bg-slate-100 border-2 border-slate-300 rounded-2xl px-4 py-2.5 text-slate-900 text-sm font-bold shadow-xs">
+                            {selectedStudent.department || 'Not specified'}
+                          </div>
+                        ) : (
+                          <select name="department" value={selectedStudent.department || ''} onChange={handleInputChange} required className={selectCls}>
+                            <option value="">Select</option>
+                            {departments.map(d => <option key={d} value={d}>{d}</option>)}
+                          </select>
+                        )}
                       </div>
                       <div>
                         <label className={labelCls}>Year</label>
@@ -406,20 +434,21 @@ export default function UpdateStudentDetails() {
                   </div>
 
                   <button type="submit" disabled={updating}
-                    className="w-full py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm text-sm">
+                    className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-2xl transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md text-sm">
                     {updating ? 'Saving...' : isStaff ? 'Save Changes' : 'Update My Details'}
                   </button>
                 </form>
               ) : (
-                <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
-                  <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mb-4">
-                    <Edit3 className="w-7 h-7 text-gray-300" />
+                <div className="flex-1 flex flex-col items-center justify-center text-center p-8 m-5 bg-slate-50 rounded-3xl border-2 border-dashed border-slate-300">
+                  <div className="w-16 h-16 bg-white border-2 border-slate-200 rounded-2xl flex items-center justify-center mb-4 shadow-sm">
+                    <Edit3 className="w-8 h-8 text-slate-400" />
                   </div>
-                  <p className="text-gray-500 text-sm font-medium">
+                  <p className="text-slate-800 text-sm font-bold">
                     {students.length > 0
                       ? 'Select a student from the list to edit their details'
                       : 'No student record available to edit'}
                   </p>
+                  <p className="text-slate-500 text-xs mt-1">Click any student card on the left</p>
                 </div>
               )}
             </div>

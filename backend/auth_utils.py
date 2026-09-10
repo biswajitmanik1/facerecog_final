@@ -21,7 +21,7 @@ class AuthException(Exception):
         self.status_code = status_code
         self.error = error
 
-def issue_token(user_id, email, role):
+def issue_token(user_id, email, role, department=None):
     now = int(time.time())
     payload = {
         "sub": str(user_id),
@@ -30,6 +30,8 @@ def issue_token(user_id, email, role):
         "iat": now,
         "exp": now + TOKEN_TTL_SECONDS,
     }
+    if department:
+        payload["department"] = department
     return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
 
 def get_current_user(credentials: HTTPAuthorizationCredentials = Security(security)):
@@ -39,7 +41,8 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Security(securi
         return {
             "id": payload.get("sub"),
             "email": payload.get("email"),
-            "role": payload.get("role")
+            "role": payload.get("role"),
+            "department": payload.get("department")
         }
     except jwt.ExpiredSignatureError:
         raise AuthException(status_code=401, error="Session expired, please sign in again")

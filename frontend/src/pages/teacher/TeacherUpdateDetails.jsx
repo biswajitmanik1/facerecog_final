@@ -23,6 +23,9 @@ function getAvatarColor(id) {
 
 export default function TeacherUpdateDetails() {
   const navigate = useNavigate()
+  const utype = localStorage.getItem('userType') || 'teacher'
+  const teacherDept = utype === 'teacher' ? (localStorage.getItem('department') || '') : ''
+
   const [student, setStudent] = useState(null)
   const [originalStudent, setOriginalStudent] = useState(null)
   const [searchResults, setSearchResults] = useState([])
@@ -31,8 +34,14 @@ export default function TeacherUpdateDetails() {
   const [updating, setUpdating] = useState(false)
   const [status, setStatus] = useState({ msg: '', type: '' })
   const [isAuthed, setIsAuthed] = useState(null)
-  const [userType, setUserType] = useState('teacher')
-  const [searchFilters, setSearchFilters] = useState({ studentId: '', department: '', year: '', division: '', studentName: '' })
+  const [userType, setUserType] = useState(utype)
+  const [searchFilters, setSearchFilters] = useState({ 
+    studentId: '', 
+    department: teacherDept || '', 
+    year: '', 
+    division: '', 
+    studentName: '' 
+  })
 
   const dashboardPath = useMemo(() => {
     if (userType === 'admin') return '/admin/dashboard'
@@ -44,13 +53,13 @@ export default function TeacherUpdateDetails() {
     const checkAuthStatus = () => {
       try {
         const loggedIn = localStorage.getItem('isLoggedIn') === 'true'
-        const utype = localStorage.getItem('userType') || 'student'
-        if (!loggedIn || (utype !== 'teacher' && utype !== 'admin')) {
+        const currentType = localStorage.getItem('userType') || 'student'
+        if (!loggedIn || (currentType !== 'teacher' && currentType !== 'admin')) {
           setIsAuthed(false)
           navigate('/signin')
         } else {
           setIsAuthed(true)
-          setUserType(utype)
+          setUserType(currentType)
         }
       } catch {
         setIsAuthed(false)
@@ -63,7 +72,13 @@ export default function TeacherUpdateDetails() {
 
   const handleFilterChange = (e) => setSearchFilters(prev => ({ ...prev, [e.target.name]: e.target.value }))
   const clearFilters = () => {
-    setSearchFilters({ studentId: '', department: '', year: '', division: '', studentName: '' })
+    setSearchFilters({ 
+      studentId: '', 
+      department: teacherDept || '', 
+      year: '', 
+      division: '', 
+      studentName: '' 
+    })
     setSearchResults([])
     setStatus({ msg: '', type: '' })
   }
@@ -78,8 +93,10 @@ export default function TeacherUpdateDetails() {
     setStatus({ msg: '', type: '' })
     setSearchResults([])
     try {
+      const activeFilters = { ...searchFilters }
+      if (teacherDept) activeFilters.department = teacherDept
       const params = new URLSearchParams()
-      Object.entries(searchFilters).forEach(([k, v]) => { if (v.trim()) params.append(k, v.trim()) })
+      Object.entries(activeFilters).forEach(([k, v]) => { if (v.trim()) params.append(k, v.trim()) })
       const res = await apiFetch(`/api/teacher/students/search?${params}`)
       const data = await res.json()
       if (data.success) {
@@ -201,9 +218,9 @@ export default function TeacherUpdateDetails() {
   }
   if (isAuthed === false) return null
 
-  const inputCls = 'w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-gray-800 text-base focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all'
-  const selectCls = 'w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-gray-700 text-base focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all'
-  const labelCls = 'block text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2'
+  const inputCls = 'w-full bg-white border-2 border-slate-300 hover:border-slate-400 focus:border-blue-600 rounded-2xl px-4 py-2.5 text-slate-900 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-100 transition-all placeholder:text-slate-400 shadow-xs'
+  const selectCls = 'w-full bg-white border-2 border-slate-300 hover:border-slate-400 focus:border-blue-600 rounded-2xl px-4 py-2.5 text-slate-900 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-100 transition-all shadow-xs cursor-pointer'
+  const labelCls = 'block text-xs font-bold text-slate-700 uppercase tracking-wide mb-1.5'
 
   const statusBg = {
     success: 'bg-green-50 border-green-200 text-green-700',
@@ -213,23 +230,23 @@ export default function TeacherUpdateDetails() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ background: '#eef2fb' }}>
+    <div className="min-h-screen flex flex-col bg-slate-100">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 shadow-sm flex-shrink-0">
+      <header className="bg-white border-b-2 border-slate-200 shadow-xs flex-shrink-0">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3.5">
-            <div className="p-2.5 bg-emerald-600 rounded-xl shadow-sm">
+            <div className="p-2.5 bg-emerald-600 rounded-2xl shadow-xs">
               <Edit3 className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-gray-800">Teacher - Student Management</h1>
-              <p className="text-base text-gray-500">Search, review, and modify student information</p>
+              <h1 className="text-2xl font-black text-slate-900">Teacher - Student Management</h1>
+              <p className="text-sm font-medium text-slate-500">Search, review, and modify student information</p>
             </div>
           </div>
 
           <button
             onClick={() => navigate(dashboardPath)}
-            className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-base font-medium transition-colors shadow-sm"
+            className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-sm font-bold transition-colors shadow-xs"
           >
             <LayoutDashboard className="w-4 h-4" />
             Dashboard
@@ -238,25 +255,25 @@ export default function TeacherUpdateDetails() {
       </header>
 
       {/* Main Container */}
-      <main className="flex-1 max-w-7xl w-full mx-auto p-6 flex flex-col gap-4">
+      <main className="flex-1 max-w-7xl w-full mx-auto p-6 flex flex-col gap-5">
         {/* Advanced Search Filter Card */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-          <div className="flex items-center justify-between mb-4 pb-3 border-b border-gray-100">
-            <div className="flex items-center gap-2 text-gray-800 font-bold text-base">
+        <div className="bg-white rounded-3xl shadow-md border-2 border-slate-300 p-5">
+          <div className="flex items-center justify-between mb-4 pb-3 border-b-2 border-slate-100">
+            <div className="flex items-center gap-2">
               <Filter className="w-5 h-5 text-blue-600" />
-              Advanced Student Search
+              <h2 className="text-lg font-black text-slate-900">Search & Filter Students</h2>
             </div>
             <div className="flex items-center gap-2">
               <button
                 onClick={clearFilters}
-                className="flex items-center gap-1.5 px-3.5 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-semibold rounded-xl transition-colors"
+                className="flex items-center gap-1.5 px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 text-xs font-bold rounded-xl transition-colors"
               >
                 <X className="w-3.5 h-3.5" /> Clear Filters
               </button>
               <button
                 onClick={searchStudents}
                 disabled={searching}
-                className="flex items-center gap-1.5 px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-base font-semibold rounded-xl transition-colors shadow-sm"
+                className="flex items-center gap-1.5 px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-bold rounded-2xl transition-colors shadow-xs"
               >
                 <Search className="w-4 h-4" />
                 {searching ? 'Searching...' : 'Search'}
@@ -266,7 +283,7 @@ export default function TeacherUpdateDetails() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
             <div className="relative">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <input
                 type="text"
                 name="studentId"
@@ -278,7 +295,7 @@ export default function TeacherUpdateDetails() {
             </div>
 
             <div className="relative">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <input
                 type="text"
                 name="studentName"
@@ -289,10 +306,17 @@ export default function TeacherUpdateDetails() {
               />
             </div>
 
-            <select name="department" value={searchFilters.department} onChange={handleFilterChange} className={selectCls}>
-              <option value="">All Departments</option>
-              {departments.map(d => <option key={d} value={d}>{d}</option>)}
-            </select>
+            {teacherDept ? (
+              <div className="flex items-center justify-between bg-blue-50 border-2 border-blue-400 rounded-2xl px-3.5 py-2 text-blue-950 text-sm font-bold shadow-xs">
+                <span className="truncate font-bold">{teacherDept}</span>
+                <span className="text-[10px] bg-blue-600 text-white font-extrabold px-2 py-0.5 rounded-lg uppercase tracking-wider ml-1.5 shrink-0">Locked</span>
+              </div>
+            ) : (
+              <select name="department" value={searchFilters.department} onChange={handleFilterChange} className={selectCls}>
+                <option value="">All Departments</option>
+                {departments.map(d => <option key={d} value={d}>{d}</option>)}
+              </select>
+            )}
 
             <select name="year" value={searchFilters.year} onChange={handleFilterChange} className={selectCls}>
               <option value="">All Years</option>
@@ -308,7 +332,7 @@ export default function TeacherUpdateDetails() {
 
         {/* Status banner */}
         {status.msg && (
-          <div className={`rounded-xl border px-4 py-3 text-base font-semibold ${statusBg[status.type] || statusBg.info}`}>
+          <div className={`rounded-2xl border px-4 py-3 text-base font-semibold ${statusBg[status.type] || statusBg.info}`}>
             {status.type === 'success' && '✅ '}{status.type === 'error' && '❌ '}{status.msg}
           </div>
         )}
@@ -316,30 +340,30 @@ export default function TeacherUpdateDetails() {
         {/* Results & Form Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 flex-1 min-h-[500px]">
           {/* Search Results List - 5 cols */}
-          <div className="lg:col-span-5 bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col overflow-hidden">
-            <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+          <div className="lg:col-span-5 bg-white rounded-3xl shadow-md border-2 border-slate-300 flex flex-col overflow-hidden">
+            <div className="px-5 py-3.5 border-b-2 border-slate-200 bg-slate-50 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Users className="w-5 h-5 text-blue-600" />
-                <h2 className="font-bold text-gray-800 text-base">Search Results</h2>
+                <h2 className="font-bold text-slate-900 text-base">Search Results</h2>
               </div>
-              <span className="text-sm font-semibold text-gray-500">
+              <span className="text-xs bg-slate-200 text-slate-800 font-bold px-2 py-0.5 rounded-lg">
                 {searchResults.length} {searchResults.length === 1 ? 'student' : 'students'}
               </span>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-3 space-y-2">
+            <div className="flex-1 overflow-y-auto p-3.5 space-y-2.5">
               {loading ? (
                 <div className="text-center py-16">
                   <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mx-auto mb-3" />
-                  <p className="text-base text-gray-500 font-medium">Loading record...</p>
+                  <p className="text-sm text-slate-600 font-semibold">Loading records...</p>
                 </div>
               ) : searchResults.length === 0 ? (
-                <div className="text-center py-16 text-gray-500">
-                  <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mx-auto mb-3">
-                    <Search className="w-8 h-8 text-gray-400" />
+                <div className="text-center py-16 text-slate-500 bg-slate-50 m-2 rounded-2xl border-2 border-dashed border-slate-200">
+                  <div className="w-16 h-16 bg-white border-2 border-slate-200 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-xs">
+                    <Search className="w-8 h-8 text-slate-400" />
                   </div>
-                  <p className="text-base font-semibold text-gray-700">No students loaded</p>
-                  <p className="text-sm text-gray-500 mt-1 max-w-xs mx-auto">
+                  <p className="text-sm font-bold text-slate-800">No students loaded</p>
+                  <p className="text-xs text-slate-500 mt-1 max-w-xs mx-auto">
                     Use the search bar above to filter by name, ID, or department
                   </p>
                 </div>
@@ -350,32 +374,32 @@ export default function TeacherUpdateDetails() {
                     <div
                       key={s._id}
                       onClick={() => selectStudent(s)}
-                      className={`group relative flex items-center gap-3.5 p-3.5 rounded-xl cursor-pointer transition-all border ${
+                      className={`group relative flex items-center gap-3.5 p-3.5 rounded-2xl cursor-pointer transition-all border-2 ${
                         selected
-                          ? 'bg-blue-50 border-blue-300 shadow-sm'
-                          : 'bg-gray-50/70 border-gray-100 hover:bg-blue-50/50 hover:border-blue-200'
+                          ? 'bg-blue-50/90 border-blue-600 shadow-md ring-2 ring-blue-200'
+                          : 'bg-white border-slate-200 hover:border-blue-400 hover:bg-blue-50/40 hover:shadow-sm'
                       }`}
                     >
                       {/* Avatar */}
-                      <div className={`flex-shrink-0 w-11 h-11 rounded-xl ${getAvatarColor(s.studentId)} flex items-center justify-center text-white font-bold text-base shadow-sm`}>
+                      <div className={`flex-shrink-0 w-11 h-11 rounded-2xl ${getAvatarColor(s.studentId)} flex items-center justify-center text-white font-black text-sm shadow-xs`}>
                         {getInitials(s.studentName)}
                       </div>
 
                       {/* Info */}
                       <div className="flex-1 min-w-0">
-                        <div className={`font-bold text-base truncate ${selected ? 'text-blue-700' : 'text-gray-800'}`}>
+                        <div className={`font-bold text-base truncate ${selected ? 'text-blue-900' : 'text-slate-900'}`}>
                           {s.studentName}
                         </div>
-                        <div className="text-sm text-gray-500 truncate mt-0.5">
-                          ID: {s.studentId} · {s.department}
+                        <div className="text-sm font-semibold text-slate-600 truncate mt-0.5">
+                          <span className="font-bold text-slate-800">{s.studentId}</span> • <span>{s.department}</span>
                         </div>
-                        <div className="flex items-center gap-1.5 mt-1.5">
-                          <span className="text-xs bg-gray-200/70 text-gray-700 font-medium px-2 py-0.5 rounded-md">{s.year}</span>
-                          <span className="text-xs bg-gray-200/70 text-gray-700 font-medium px-2 py-0.5 rounded-md">Div {s.division}</span>
+                        <div className="flex items-center gap-2 mt-1.5">
+                          <span className="text-xs bg-slate-100 border border-slate-300 text-slate-800 px-2.5 py-0.5 rounded-lg font-bold shadow-2xs">{s.year}</span>
+                          <span className="text-xs bg-slate-100 border border-slate-300 text-slate-800 px-2.5 py-0.5 rounded-lg font-bold shadow-2xs">Div {s.division}</span>
                         </div>
                       </div>
 
-                      <ChevronRight className={`w-5 h-5 transition-colors ${selected ? 'text-blue-500' : 'text-gray-300 group-hover:text-gray-400'}`} />
+                      <ChevronRight className={`w-5 h-5 transition-colors ${selected ? 'text-blue-600' : 'text-slate-400 group-hover:text-slate-600'}`} />
                     </div>
                   )
                 })
@@ -384,33 +408,33 @@ export default function TeacherUpdateDetails() {
           </div>
 
           {/* Student Edit Form - 7 cols */}
-          <div className="lg:col-span-7 bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+          <div className="lg:col-span-7 bg-white rounded-3xl shadow-md border-2 border-slate-300 flex flex-col overflow-hidden">
+            <div className="px-5 py-3.5 border-b-2 border-slate-200 bg-slate-50 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Edit3 className="w-5 h-5 text-emerald-600" />
-                <h2 className="font-bold text-gray-800 text-base">Student Information</h2>
+                <h2 className="font-bold text-slate-900 text-base">Student Information</h2>
               </div>
               {hasChanges() && (
-                <span className="text-xs font-bold px-2.5 py-1 bg-amber-50 border border-amber-200 text-amber-700 rounded-lg">
+                <span className="text-xs font-bold px-2.5 py-1 bg-amber-50 border border-amber-300 text-amber-800 rounded-xl">
                   Unsaved Changes
                 </span>
               )}
             </div>
 
             {!student ? (
-              <div className="flex-1 flex flex-col items-center justify-center text-center p-12 text-gray-500">
-                <div className="w-20 h-20 bg-gray-50 rounded-2xl flex items-center justify-center mb-4">
-                  <User className="w-10 h-10 text-gray-300" />
+              <div className="flex-1 flex flex-col items-center justify-center text-center p-12 m-5 bg-slate-50 rounded-3xl border-2 border-dashed border-slate-300">
+                <div className="w-16 h-16 bg-white border-2 border-slate-200 rounded-2xl flex items-center justify-center mb-4 shadow-sm">
+                  <User className="w-8 h-8 text-slate-400" />
                 </div>
-                <h3 className="text-lg font-bold text-gray-700 mb-1">No Student Selected</h3>
-                <p className="text-base text-gray-500 max-w-sm">
+                <h3 className="text-base font-bold text-slate-800 mb-1">No Student Selected</h3>
+                <p className="text-xs text-slate-500 max-w-sm">
                   Search and click on a student from the results list to view and update their profile details.
                 </p>
               </div>
             ) : (
               <form onSubmit={handleUpdate} className="flex-1 overflow-y-auto p-6 space-y-6">
                 {/* Active Student summary pill */}
-                <div className="bg-blue-50/80 border border-blue-200/70 rounded-xl p-4 flex items-center justify-between">
+                <div className="bg-blue-50/80 border border-blue-200/70 rounded-2xl p-4 flex items-center justify-between">
                   <div>
                     <h4 className="text-base font-bold text-blue-900">{originalStudent?.studentName}</h4>
                     <p className="text-sm font-medium text-blue-700 mt-0.5">ID: {originalStudent?.studentId} · {originalStudent?.department}</p>
@@ -487,11 +511,22 @@ export default function TeacherUpdateDetails() {
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label className={labelCls}>Department</label>
-                      <select name="department" value={student.department || ''} onChange={handleInputChange} required className={selectCls}>
-                        <option value="">Select Department</option>
-                        {departments.map(d => <option key={d} value={d}>{d}</option>)}
-                      </select>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <label className={labelCls}>Department</label>
+                        {userType === 'teacher' && (
+                          <span className="text-xs text-gray-400 font-medium">🔒 Read-only</span>
+                        )}
+                      </div>
+                      {userType === 'teacher' ? (
+                        <div className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-gray-600 text-base font-medium">
+                          {student.department || 'Not specified'}
+                        </div>
+                      ) : (
+                        <select name="department" value={student.department || ''} onChange={handleInputChange} required className={selectCls}>
+                          <option value="">Select Department</option>
+                          {departments.map(d => <option key={d} value={d}>{d}</option>)}
+                        </select>
+                      )}
                     </div>
                     <div>
                       <label className={labelCls}>Year</label>
@@ -522,7 +557,7 @@ export default function TeacherUpdateDetails() {
                   <button
                     type="submit"
                     disabled={updating || !hasChanges()}
-                    className="flex-1 py-3.5 px-5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed text-white text-base font-bold rounded-xl transition-colors shadow-sm flex items-center justify-center gap-2"
+                    className="flex-1 py-3.5 px-5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed text-white text-base font-bold rounded-2xl transition-colors shadow-sm flex items-center justify-center gap-2"
                   >
                     <Save className="w-4 h-4" />
                     {updating ? 'Saving...' : 'Save Changes'}
@@ -532,19 +567,21 @@ export default function TeacherUpdateDetails() {
                     type="button"
                     onClick={resetForm}
                     disabled={!hasChanges()}
-                    className="py-3.5 px-5 bg-gray-100 hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed text-gray-700 text-base font-semibold rounded-xl transition-colors flex items-center gap-2"
+                    className="py-3.5 px-5 bg-gray-100 hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed text-gray-700 text-base font-semibold rounded-2xl transition-colors flex items-center gap-2"
                   >
                     <RotateCcw className="w-4 h-4" /> Reset
                   </button>
 
-                  <button
-                    type="button"
-                    onClick={handleDelete}
-                    disabled={updating}
-                    className="py-3.5 px-5 bg-red-50 hover:bg-red-100 border border-red-200 text-red-600 text-base font-semibold rounded-xl transition-colors flex items-center gap-2"
-                  >
-                    <Trash2 className="w-4 h-4" /> Delete
-                  </button>
+                  {userType === 'admin' && (
+                    <button
+                      type="button"
+                      onClick={handleDelete}
+                      disabled={updating}
+                      className="py-3.5 px-5 bg-red-50 hover:bg-red-100 border border-red-200 text-red-600 text-base font-semibold rounded-2xl transition-colors flex items-center gap-2"
+                    >
+                      <Trash2 className="w-4 h-4" /> Delete
+                    </button>
+                  )}
                 </div>
               </form>
             )}

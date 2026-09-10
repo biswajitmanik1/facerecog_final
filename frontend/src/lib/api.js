@@ -6,7 +6,7 @@ export function getToken() {
 }
 
 /**
- * Wraps fetch() for calls to the Flask API: prefixes API_BASE and attaches
+ * Wraps fetch() for calls to the FastAPI backend: prefixes API_BASE and attaches
  * the signed-in user's Authorization: Bearer token automatically.
  */
 export async function apiFetch(path, options = {}) {

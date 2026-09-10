@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 from database import get_db
 from models import Student
 from auth_utils import require_auth
+from scipy.spatial.distance import cosine
 
 student_registration_router = APIRouter()
 detector = MTCNN()
@@ -66,6 +67,19 @@ async def register_student(
     if current_user["role"] == "student":
         data = {**data, "email": current_user["email"]}
 
+    if current_user["role"] == "teacher":
+        teacher_dept = current_user.get("department")
+        if not teacher_dept:
+            from models import AuthTeacher
+            t = db.query(AuthTeacher).filter_by(email=current_user["email"]).first()
+            if t:
+                teacher_dept = t.department
+        if teacher_dept and data.get("department") and data.get("department").strip().lower() != teacher_dept.strip().lower():
+            return JSONResponse(status_code=403, content={
+                "success": False,
+                "error": f"Unauthorized: As a {teacher_dept} teacher, you can only register students for {teacher_dept}."
+            })
+
     required_fields = ['studentName', 'studentId', 'department', 'year', 'division', 'semester', 'email', 'phoneNumber', 'images']
     for field in required_fields:
         if not data.get(field):
@@ -97,6 +111,30 @@ async def register_student(
         if emb is None:
             return JSONResponse(status_code=500, content={"success": False, "error": f"Failed to extract face features for image {idx+1}"})
         embeddings.append(emb.tolist())
+
+    # Biometric duplicate face verification
+    new_avg_emb = np.mean(embeddings, axis=0)
+    existing_students = db.query(Student).filter(Student.embeddings.isnot(None)).all()
+    for existing in existing_students:
+        stored = existing.embeddings
+        if not stored:
+            continue
+        if isinstance(stored, list) and len(stored) > 0:
+            ex_avg = np.mean(stored, axis=0)
+        else:
+            ex_avg = np.array(stored)
+
+        dist = cosine(new_avg_emb, ex_avg)
+        if dist < 0.40:
+            confidence = round((1 - dist) * 100, 1)
+            logger.warning(f"Duplicate face detected! Matches student {existing.student_id} ({existing.student_name}) with {confidence}% confidence")
+            return JSONResponse(
+                status_code=400,
+                content={
+                    "success": False,
+                    "error": f"This face is already registered to '{existing.student_name}' (ID: {existing.student_id}, Match: {confidence}%). The same face cannot be registered under multiple student IDs."
+                }
+            )
 
     now = time.time()
     student = Student(

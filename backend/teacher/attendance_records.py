@@ -12,12 +12,21 @@ import logging
 import time
 
 from database import get_db
-from models import AttendanceRecord, Student
+from models import AttendanceRecord, Student, AuthTeacher
 from auth_utils import require_auth
+from sqlalchemy.orm.attributes import flag_modified
 
 logger = logging.getLogger(__name__)
 
 attendance_session_router = APIRouter(prefix="/api/attendance")
+
+def get_user_department(current_user: dict, db: Session):
+    dept = current_user.get("department")
+    if not dept and current_user.get("role") == "teacher":
+        teacher = db.query(AuthTeacher).filter_by(email=current_user.get("email")).first()
+        if teacher:
+            dept = teacher.department
+    return dept
 
 # ----------------- OPTIMIZED Helper Functions ----------------- #
 
@@ -147,6 +156,18 @@ async def create_session(
     """Create a new attendance session"""
     data = await request.json()
 
+    user_role = current_user.get("role")
+    teacher_dept = get_user_department(current_user, db)
+    req_dept = data.get("department")
+
+    if user_role == "teacher" and teacher_dept:
+        if req_dept and req_dept.strip().lower() != teacher_dept.strip().lower():
+            return JSONResponse(
+                status_code=403,
+                content={"error": f"Unauthorized: You can only start attendance sessions for your assigned department ({teacher_dept})."}
+            )
+        data["department"] = teacher_dept
+
     students_list = []
 
     student_filter = {}
@@ -217,6 +238,11 @@ async def end_session(
         if not session:
             return JSONResponse(status_code=404, content={"error": "Session not found"})
 
+        if current_user.get("role") == "teacher":
+            teacher_dept = get_user_department(current_user, db)
+            if teacher_dept and session.department and session.department.strip().lower() != teacher_dept.strip().lower():
+                return JSONResponse(status_code=403, content={"error": f"Unauthorized: You cannot finalize a session belonging to {session.department}."})
+
         present_students = set(
             s.get("student_id") for s in (session.students or [])
             if s.get("present")
@@ -249,6 +275,7 @@ async def end_session(
         session.students = list(students_by_id.values())
         session.finalized = True
         session.ended_at = datetime.now()
+        flag_modified(session, "students")
         db.commit()
 
         logger.info(f"Session finalized: {len(present_students)} present, {absent_count} absent")
@@ -347,6 +374,39 @@ async def mark_attendance_with_duplicate_prevention(
                 student_id = best.student_id
                 student_name = best.student_name
 
+                # Validate department, year, and division
+                sess_dept = (session.department or "").strip().lower()
+                stud_dept = (best.department or "").strip().lower()
+                sess_year = (session.year or "").strip().lower()
+                stud_year = (best.year or "").strip().lower()
+                sess_div = (session.division or "").strip().lower()
+                stud_div = (best.division or "").strip().lower()
+
+                dept_match = not sess_dept or stud_dept == sess_dept
+                year_match = not sess_year or stud_year == sess_year
+                div_match = not sess_div or stud_div == sess_div
+
+                if not (dept_match and year_match and div_match):
+                    mismatch_reasons = []
+                    if not dept_match:
+                        mismatch_reasons.append(f"{best.department or 'Unknown'} ≠ {session.department}")
+                    if not year_match:
+                        mismatch_reasons.append(f"{best.year or 'Unknown'} ≠ {session.year}")
+                    if not div_match:
+                        mismatch_reasons.append(f"Div {best.division or 'Unknown'} ≠ {session.division}")
+
+                    reason_str = ", ".join(mismatch_reasons)
+                    logger.warning(f"Department/Class Mismatch: {student_name} ({reason_str}) rejected from session #{session_id}")
+                    results.append({
+                        "match": None,
+                        "distance": round(float(min_d), 4),
+                        "confidence": round((1 - min_d) * 100, 1),
+                        "box": f["box"],
+                        "status": "mismatch",
+                        "message": f"{student_name} belongs to {best.department or 'another dept'} (not enrolled in this {session.department} class)"
+                    })
+                    continue
+
                 if student_id in already_present_students:
                     results.append({
                         "match": {"user_id": student_id, "name": student_name},
@@ -410,6 +470,7 @@ async def mark_attendance_with_duplicate_prevention(
                 })
 
         session.students = students_list
+        flag_modified(session, "students")
         db.commit()
 
         processing_time = time.time() - start_time

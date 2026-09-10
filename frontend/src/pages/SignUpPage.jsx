@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Camera, User, Lock, Mail, Building, IdCard } from 'lucide-react'
 import { apiFetch } from '../lib/api.js'
@@ -11,6 +11,11 @@ export default function SignUpPage() {
   })
   const [status, setStatus] = useState('')
   const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    // Purge any stale login session when creating a new account
+    localStorage.clear()
+  }, [])
 
   const departments = [
     'Computer Science', 'Information Technology', 'Electronics',
@@ -28,10 +33,11 @@ export default function SignUpPage() {
     try {
       const res = await apiFetch('/api/signup', {
         method: 'POST',
-        body: JSON.stringify({ ...form, role }),
+        body: JSON.stringify({ ...form, role, userType: role }),
       })
       const data = await res.json()
       if (data.success) {
+        localStorage.clear()
         setStatus('✅ Account created! Redirecting to sign in…')
         setTimeout(() => navigate('/signin'), 1500)
       } else {

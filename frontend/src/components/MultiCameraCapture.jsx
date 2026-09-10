@@ -108,24 +108,30 @@ export default function MultiCameraCapture({ onCapture }) {
             </p>
           </div>
 
-          <div className="relative rounded-xl overflow-hidden border-2 border-slate-200 bg-black">
-            <video ref={videoRef} autoPlay muted playsInline className="w-full" style={{ display: 'block' }} />
+          <div className="relative max-w-lg mx-auto rounded-2xl overflow-hidden border-2 border-slate-300 bg-slate-950 shadow-lg aspect-[4/3] max-h-[360px] flex items-center justify-center">
+            <video ref={videoRef} autoPlay muted playsInline className="w-full h-full object-cover" style={{ display: 'block' }} />
+            {/* Subtle face frame guide */}
+            <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+              <div className="w-44 h-56 border-2 border-dashed border-white/35 rounded-[50%]" />
+            </div>
             {capturing && (
-              <div className="absolute inset-0 bg-white/40 flex items-center justify-center">
-                <div className="w-16 h-16 border-4 border-blue-500 rounded-full animate-spin border-t-transparent" />
+              <div className="absolute inset-0 bg-white/40 backdrop-blur-xs flex items-center justify-center z-10">
+                <div className="w-14 h-14 border-4 border-blue-600 rounded-full animate-spin border-t-transparent shadow-md" />
               </div>
             )}
           </div>
 
-          <button
-            onClick={captureOne}
-            disabled={capturing}
-            className="w-full py-4 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white font-bold rounded-xl transition-all duration-300 hover:scale-105 disabled:opacity-50 flex items-center justify-center gap-2"
-          >
-            <Camera className="w-5 h-5" />
-            {capturing ? 'Capturing...' : `Capture ${DIRECTIONS[currentIndex]} Photo`}
-            <ArrowRight className="w-5 h-5" />
-          </button>
+          <div className="max-w-lg mx-auto">
+            <button
+              onClick={captureOne}
+              disabled={capturing}
+              className="w-full py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold rounded-xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg hover:shadow-xl"
+            >
+              <Camera className="w-5 h-5" />
+              {capturing ? 'Capturing...' : `Capture ${DIRECTIONS[currentIndex]} Photo`}
+              <ArrowRight className="w-5 h-5" />
+            </button>
+          </div>
         </div>
       )}
 
@@ -138,9 +144,11 @@ export default function MultiCameraCapture({ onCapture }) {
       )}
 
       {captured.length > 0 && !done && (
-        <button onClick={reset} className="w-full py-2 text-slate-600 border border-slate-300 rounded-lg hover:bg-slate-50 text-sm">
-          Reset & Start Over
-        </button>
+        <div className="max-w-lg mx-auto">
+          <button onClick={reset} className="w-full py-2 text-slate-600 border border-slate-300 rounded-lg hover:bg-slate-50 text-sm font-medium transition-colors">
+            Reset & Start Over
+          </button>
+        </div>
       )}
     </div>
   )

@@ -1,28 +1,32 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { LogOut, RefreshCw, BookOpen, CheckCircle2, XCircle, TrendingUp, CalendarClock } from 'lucide-react'
+import { LogOut, RefreshCw, BookOpen, CheckCircle2, XCircle, TrendingUp, CalendarClock, Camera, UserPlus } from 'lucide-react'
 import { apiFetch } from '../lib/api.js'
 import AttendanceHeatmap from '../components/AttendanceHeatmap.jsx'
 
 const TABS = ['Overview', 'Heatmap', 'Subject-wise', 'History', 'Monthly']
 
 // SVG donut chart (balanced size)
-function DonutChart({ percent }) {
+function DonutChart({ percent, total = 1 }) {
   const r = 58
   const circ = 2 * Math.PI * r
   const dash = (percent / 100) * circ
-  const color = percent >= 75 ? '#22c55e' : percent >= 50 ? '#f59e0b' : '#ef4444'
+  const color = total === 0 ? '#9ca3af' : percent >= 75 ? '#22c55e' : percent >= 50 ? '#f59e0b' : '#ef4444'
   return (
     <svg width="170" height="170" viewBox="0 0 170 170">
       <circle cx="85" cy="85" r={r} fill="none" stroke="#e5e7eb" strokeWidth="14" />
-      <circle
-        cx="85" cy="85" r={r} fill="none"
-        stroke={color} strokeWidth="14"
-        strokeDasharray={`${dash} ${circ - dash}`}
-        strokeLinecap="round"
-        transform="rotate(-90 85 85)"
-      />
-      <text x="85" y="81" textAnchor="middle" fontSize="30" fontWeight="800" fill={color}>{percent}%</text>
+      {total > 0 && (
+        <circle
+          cx="85" cy="85" r={r} fill="none"
+          stroke={color} strokeWidth="14"
+          strokeDasharray={`${dash} ${circ - dash}`}
+          strokeLinecap="round"
+          transform="rotate(-90 85 85)"
+        />
+      )}
+      <text x="85" y="81" textAnchor="middle" fontSize="30" fontWeight="800" fill={color}>
+        {total === 0 ? '—' : `${percent}%`}
+      </text>
       <text x="85" y="104" textAnchor="middle" fontSize="13" fontWeight="600" fill="#6b7280">Attendance</text>
     </svg>
   )
@@ -76,7 +80,7 @@ export default function DashboardPage() {
     if (isRefresh) setRefreshing(true)
     else setLoading(true)
     try {
-      const studentId = localStorage.getItem('username') || ''
+      const studentId = localStorage.getItem('studentId') || localStorage.getItem('username') || ''
       const params = new URLSearchParams()
       if (studentId) params.set('student_id', studentId)
       const res = await apiFetch(`/api/attendance?${params.toString()}`)
@@ -108,7 +112,7 @@ export default function DashboardPage() {
         setMissed(missedC)
         setOverallPct(pct)
 
-        const today = new Date().toISOString().split('T')[0]
+        const today = new Date().toLocaleDateString('en-CA')
         const todayRecords = records.filter(r => (r.date || '').startsWith(today))
         if (todayRecords.length === 0) setTodayStatus('No Class')
         else if (todayRecords.some(r => (r.status || 'present') === 'present')) setTodayStatus('Present')
@@ -203,6 +207,26 @@ export default function DashboardPage() {
       </header>
 
       <main className="flex-1 px-6 py-6 max-w-7xl w-full mx-auto space-y-6">
+        {!(localStorage.getItem('hasStudentRecord') === 'true' || Boolean(localStorage.getItem('studentId'))) && !loading && (
+          <div className="bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 border-2 border-blue-200 rounded-2xl p-5 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm">
+            <div className="flex items-center gap-3.5">
+              <div className="p-3 bg-blue-600 text-white rounded-xl shadow-md flex-shrink-0">
+                <Camera className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">Student Profile & Face Not Registered Yet</h3>
+                <p className="text-sm text-gray-600">Register your department, year, division, and capture your 5 face photos to link automated attendance.</p>
+              </div>
+            </div>
+            <button
+              onClick={() => navigate('/student/registrationform')}
+              className="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold rounded-xl text-sm transition-all shadow-md hover:shadow-lg whitespace-nowrap flex-shrink-0"
+            >
+              Register Profile & Face →
+            </button>
+          </div>
+        )}
+
         {/* Stat Cards (Nicely balanced size) */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
           {/* Card 1: Total Classes */}
@@ -315,12 +339,18 @@ export default function DashboardPage() {
               <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex flex-col justify-between">
                 <h3 className="text-lg font-bold text-gray-800 mb-4">Overall Attendance</h3>
                 <div className="flex justify-center my-3">
-                  <DonutChart percent={overallPct} />
+                  <DonutChart percent={overallPct} total={totalClasses} />
                 </div>
                 <div className="flex justify-center my-3">
-                  <span className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-xl text-sm font-bold shadow-sm ${safeAbove ? 'bg-green-50 border border-green-200 text-green-700' : 'bg-red-50 border border-red-200 text-red-600'}`}>
-                    {safeAbove ? '✅' : '⚠️'} {safeAbove ? 'Safe — Above minimum' : 'Warning — Below minimum'}
-                  </span>
+                  {totalClasses === 0 ? (
+                    <span className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-xl text-sm font-bold shadow-sm bg-gray-100 border border-gray-200 text-gray-600">
+                      ℹ️ Pending Enrollment / No Classes
+                    </span>
+                  ) : (
+                    <span className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-xl text-sm font-bold shadow-sm ${safeAbove ? 'bg-green-50 border border-green-200 text-green-700' : 'bg-red-50 border border-red-200 text-red-600'}`}>
+                      {safeAbove ? '✅' : '⚠️'} {safeAbove ? 'Safe — Above minimum' : 'Warning — Below minimum'}
+                    </span>
+                  )}
                 </div>
                 <div className="grid grid-cols-2 gap-3 mt-4">
                   <div className="bg-green-50/70 border border-green-100 rounded-xl p-4 text-center">

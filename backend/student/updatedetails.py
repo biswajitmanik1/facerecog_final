@@ -7,7 +7,7 @@ from sqlalchemy import or_, func
 from sqlalchemy.orm import Session
 
 from database import get_db
-from models import Student
+from models import Student, AuthTeacher
 from auth_utils import require_auth
 
 student_update_router = APIRouter()
@@ -18,6 +18,15 @@ def parse_id(value):
         return int(value)
     except (TypeError, ValueError):
         return None
+
+
+def get_teacher_department(current_user: dict, db: Session) -> Optional[str]:
+    dept = current_user.get("department")
+    if not dept and current_user.get("role") == "teacher":
+        teacher = db.query(AuthTeacher).filter_by(email=current_user.get("email")).first()
+        if teacher:
+            dept = teacher.department
+    return dept
 
 
 # ============================================================================
@@ -94,6 +103,14 @@ async def get_student(
                 "error": "Unauthorized: You can only view your own student record"
             })
 
+        if user_type == 'teacher':
+            teacher_dept = get_teacher_department(current_user, db)
+            if teacher_dept and student.department and student.department.strip().lower() != teacher_dept.strip().lower():
+                return JSONResponse(status_code=403, content={
+                    "success": False,
+                    "error": f"Unauthorized: Student belongs to {student.department}. You can only view {teacher_dept} students."
+                })
+
         return {"success": True, "student": student.to_dict()}
     except Exception as e:
         return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
@@ -106,7 +123,7 @@ async def update_student(
     current_user: dict = Depends(require_auth("student", "teacher", "admin")),
     db: Session = Depends(get_db)
 ):
-    """Update student (students may only update their own record)"""
+    """Update student (students may only update their own record, teachers only their department)"""
     data = await request.json()
 
     try:
@@ -133,6 +150,20 @@ async def update_student(
                 })
 
         elif is_staff:
+            if user_type == 'teacher':
+                teacher_dept = get_teacher_department(current_user, db)
+                if teacher_dept:
+                    if student.department and student.department.strip().lower() != teacher_dept.strip().lower():
+                        return JSONResponse(status_code=403, content={
+                            "success": False,
+                            "error": f"Unauthorized: Student belongs to {student.department}. You can only modify {teacher_dept} students."
+                        })
+                    new_dept = data.get('department')
+                    if new_dept and new_dept.strip().lower() != teacher_dept.strip().lower():
+                        return JSONResponse(status_code=403, content={
+                            "success": False,
+                            "error": f"Unauthorized: Teachers cannot change a student's department to {new_dept}."
+                        })
             if data.get('email') and data.get('email') != student.email:
                 existing = db.query(Student).filter(
                     Student.email == data.get('email'),
@@ -197,6 +228,12 @@ async def delete_student(
                 "error": "Unauthorized: You can only delete your own student record"
             })
 
+        if user_type == 'teacher':
+            return JSONResponse(status_code=403, content={
+                "success": False,
+                "error": "Unauthorized: Teachers are not permitted to delete student records. Contact an administrator."
+            })
+
         name = student.student_name
         db.delete(student)
         db.commit()
@@ -245,6 +282,7 @@ async def get_all_students_admin(
 ):
     """Teacher/admin route to view all students with filtering"""
     try:
+        user_role = current_user.get("role")
         department = request.query_params.get('department', '')
         year = request.query_params.get('year', '')
         division = request.query_params.get('division', '')
@@ -252,8 +290,15 @@ async def get_all_students_admin(
         search = request.query_params.get('search', '')
 
         query = db.query(Student)
-        if department:
+
+        # Department scoping: teachers only see students from their own department
+        if user_role == "teacher":
+            teacher_dept = get_teacher_department(current_user, db)
+            if teacher_dept:
+                query = query.filter(Student.department == teacher_dept)
+        elif department:
             query = query.filter(Student.department == department)
+
         if year:
             query = query.filter(Student.year == year)
         if division:
@@ -287,8 +332,9 @@ async def search_students_teacher(
     current_user: dict = Depends(require_auth("teacher", "admin")),
     db: Session = Depends(get_db)
 ):
-    """Advanced search for teachers/admins with multiple filters"""
+    """Advanced search for teachers/admins with department scoping"""
     try:
+        user_role = current_user.get("role")
         student_id = request.query_params.get('studentId', '').strip()
         student_name = request.query_params.get('studentName', '').strip()
         department = request.query_params.get('department', '').strip()
@@ -304,9 +350,17 @@ async def search_students_teacher(
         if student_name:
             query = query.filter(Student.student_name.ilike(f"%{student_name}%"))
             applied_filters['studentName'] = student_name
-        if department:
+
+        # Department scoping: Teachers can only search in their own department
+        if user_role == "teacher":
+            teacher_dept = get_teacher_department(current_user, db)
+            if teacher_dept:
+                query = query.filter(Student.department == teacher_dept)
+                applied_filters['department'] = teacher_dept
+        elif department:
             query = query.filter(Student.department == department)
             applied_filters['department'] = department
+
         if year:
             query = query.filter(Student.year == year)
             applied_filters['year'] = year
@@ -345,6 +399,14 @@ async def get_student_by_id_teacher(
         if not student:
             return JSONResponse(status_code=404, content={"success": False, "error": f"Student with ID '{student_id_or_db_id}' not found"})
 
+        if current_user.get("role") == "teacher":
+            teacher_dept = get_teacher_department(current_user, db)
+            if teacher_dept and student.department and student.department.strip().lower() != teacher_dept.strip().lower():
+                return JSONResponse(status_code=403, content={
+                    "success": False,
+                    "error": f"Unauthorized: Student belongs to {student.department}. You can only view {teacher_dept} students."
+                })
+
         return {"success": True, "student": student.to_dict()}
 
     except Exception as e:
@@ -358,7 +420,7 @@ async def update_student_teacher(
     current_user: dict = Depends(require_auth("teacher", "admin")),
     db: Session = Depends(get_db)
 ):
-    """Teacher/admin route to update any student by database id"""
+    """Teacher/admin route to update student with department scoping"""
     data = await request.json()
 
     try:
@@ -366,6 +428,21 @@ async def update_student_teacher(
         student = db.query(Student).get(db_id) if db_id is not None else None
         if not student:
             return JSONResponse(status_code=404, content={"success": False, "error": "Student not found"})
+
+        if current_user.get("role") == "teacher":
+            teacher_dept = get_teacher_department(current_user, db)
+            if teacher_dept:
+                if student.department and student.department.strip().lower() != teacher_dept.strip().lower():
+                    return JSONResponse(status_code=403, content={
+                        "success": False,
+                        "error": f"Unauthorized: Student belongs to {student.department}. You can only modify {teacher_dept} students."
+                    })
+                new_dept = data.get("department")
+                if new_dept and new_dept.strip().lower() != teacher_dept.strip().lower():
+                    return JSONResponse(status_code=403, content={
+                        "success": False,
+                        "error": f"Unauthorized: Teachers cannot change a student's department to {new_dept}."
+                    })
 
         if data.get('studentId') and data.get('studentId') != student.student_id:
             existing = db.query(Student).filter(
@@ -410,10 +487,10 @@ async def update_student_teacher(
 @student_update_router.delete('/api/teacher/student/{student_db_id}')
 async def delete_student_teacher(
     student_db_id: str,
-    current_user: dict = Depends(require_auth("teacher", "admin")),
+    current_user: dict = Depends(require_auth("admin")),
     db: Session = Depends(get_db)
 ):
-    """Teacher/admin route to delete any student by database id"""
+    """Admin-only route to delete any student by database id"""
     try:
         db_id = parse_id(student_db_id)
         student = db.query(Student).get(db_id) if db_id is not None else None

@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { BarChart3, Search, Download, LayoutDashboard, Calendar, Users, CheckCircle2, XCircle, TrendingUp, AlertTriangle } from 'lucide-react'
 import { apiFetch } from '../../lib/api.js'
@@ -12,7 +12,13 @@ export default function ViewAttendance() {
   const [filterYear, setFilterYear] = useState('')
   const [filterDivision, setFilterDivision] = useState('')
   const [filterSubject, setFilterSubject] = useState('')
-  const [filterStudentId, setFilterStudentId] = useState('')
+  const [filterStudentId, setFilterStudentId] = useState(() => {
+    const utype = localStorage.getItem('userType')
+    if (utype === 'student') {
+      return localStorage.getItem('studentId') || localStorage.getItem('username') || ''
+    }
+    return ''
+  })
   const [stats, setStats] = useState({ totalStudents: 0, presentToday: 0, absentToday: 0, attendanceRate: 0 })
   const [searched, setSearched] = useState(false)
 
@@ -21,6 +27,12 @@ export default function ViewAttendance() {
     if (utype === 'admin') return '/admin/dashboard'
     if (utype === 'teacher') return '/teacher/dashboard'
     return '/dashboard'
+  }, [])
+
+  useEffect(() => {
+    if (filterStudentId) {
+      fetchAttendanceData()
+    }
   }, [])
 
   const fetchAttendanceData = async () => {

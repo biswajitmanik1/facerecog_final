@@ -26,19 +26,30 @@ export default function SignInPage() {
     try {
       const res = await apiFetch('/api/signin', {
         method: 'POST',
-        body: JSON.stringify({ email: username, password, userType: role }),
+        body: JSON.stringify({
+          email: username.trim(),
+          username: username.trim(),
+          employeeId: username.trim(),
+          password,
+          userType: role,
+          role
+        }),
       })
       const data = await res.json()
       if (data.success) {
         const user = data.user || {}
+        // Clear all previous session keys to prevent cross-account contamination
+        localStorage.clear()
         localStorage.setItem('isLoggedIn', 'true')
         localStorage.setItem('username', user.username || user.email || username)
         localStorage.setItem('userType', data.userType || user.userType || role)
         localStorage.setItem('authToken', data.token || '')
         localStorage.setItem('userId', user._id || '')
         localStorage.setItem('userEmail', user.email || username)
+        localStorage.setItem('hasStudentRecord', user.hasStudentRecord ? 'true' : 'false')
         if (user.studentId) localStorage.setItem('studentId', user.studentId)
         if (user.employeeId) localStorage.setItem('employeeId', user.employeeId)
+        if (user.department) localStorage.setItem('department', user.department)
 
         const resolvedType = data.userType || user.userType || role
         if (resolvedType === 'admin') navigate('/admin/dashboard')
@@ -101,8 +112,14 @@ export default function SignInPage() {
             <div className="relative">
               <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
-                type="email"
-                placeholder="Email address"
+                type="text"
+                placeholder={
+                  role === 'teacher'
+                    ? 'Email, Username or Employee ID'
+                    : role === 'student'
+                    ? 'Email or Username'
+                    : 'Admin Email or Username'
+                }
                 value={username}
                 onChange={e => setUsername(e.target.value)}
                 required

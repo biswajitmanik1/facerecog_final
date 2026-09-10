@@ -27,13 +27,20 @@ function InputField({ name, value, onChange, icon: Icon, label, placeholder, typ
   )
 }
 
-function SelectField({ name, value, onChange, icon: Icon, label, options, placeholder, prefix }) {
+function SelectField({ name, value, onChange, icon: Icon, label, options, placeholder, prefix, disabled = false }) {
   return (
     <div className="group">
-      <label className="block text-slate-700 text-sm font-semibold mb-2 transition-all duration-300 group-focus-within:text-emerald-600">{label}</label>
+      <div className="flex items-center justify-between mb-2">
+        <label className="block text-slate-700 text-sm font-semibold transition-all duration-300 group-focus-within:text-emerald-600">{label}</label>
+        {disabled && (
+          <span className="text-xs text-blue-600 font-medium">🔒 Locked</span>
+        )}
+      </div>
       <div className="relative">
-        <select name={name} value={value} onChange={onChange}
-          className="w-full px-4 py-3 pl-12 rounded-lg bg-white border-2 border-slate-200 text-slate-800 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 transition-all duration-300 font-medium hover:border-slate-300 shadow-sm hover:shadow-md appearance-none cursor-pointer">
+        <select name={name} value={value} onChange={onChange} disabled={disabled}
+          className={`w-full px-4 py-3 pl-12 rounded-lg border-2 border-slate-200 text-slate-800 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 transition-all duration-300 font-medium hover:border-slate-300 shadow-sm hover:shadow-md appearance-none ${
+            disabled ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : 'bg-white cursor-pointer'
+          }`}>
           <option value="" className="text-slate-400">{placeholder || `Select ${label}`}</option>
           {options.map(opt => (
             <option key={opt} value={opt} className="text-slate-800 font-medium">
@@ -78,6 +85,11 @@ export default function StudentRegistrationForm() {
       if (utype === 'student') {
         const loginEmail = localStorage.getItem('userEmail') || ''
         setFormData(prev => ({ ...prev, email: loginEmail }))
+      } else if (utype === 'teacher') {
+        const teacherDept = localStorage.getItem('department') || ''
+        if (teacherDept) {
+          setFormData(prev => ({ ...prev, department: teacherDept }))
+        }
       }
     } catch { setIsAuthed(false); navigate('/signin') }
   }, [navigate])
@@ -105,6 +117,8 @@ export default function StudentRegistrationForm() {
       const res = await apiFetch('/api/register-student', { method: 'POST', body: JSON.stringify({ ...formData, images }) })
       const data = await res.json()
       if (data.success) {
+        localStorage.setItem('studentId', formData.studentId)
+        localStorage.setItem('hasStudentRecord', 'true')
         setStatus(`✅ Student registered successfully! ID: ${formData.studentId}`)
         setTimeout(() => navigate(dashboardPath), 1200)
       } else { setStatus(`❌ ${data.error}`) }
@@ -154,7 +168,7 @@ export default function StudentRegistrationForm() {
       </header>
 
       <main className="p-4 relative z-10 max-h-[calc(100vh-120px)] overflow-y-auto">
-        <div className="max-w-7xl mx-auto">
+        <div className={`mx-auto transition-all duration-300 ${step === 1 ? 'max-w-7xl' : 'max-w-2xl'}`}>
           {step === 1 ? (
             <div className="bg-white/90 backdrop-blur-lg rounded-2xl p-6 border-2 border-slate-200 shadow-2xl">
               <div className="text-center mb-6">
@@ -175,7 +189,16 @@ export default function StudentRegistrationForm() {
                   <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-xl p-6 border-2 border-emerald-200 shadow-lg">
                     <h3 className="text-xl font-bold text-slate-900 mb-5">Academic Details</h3>
                     <div className="space-y-4">
-                      <SelectField name="department" value={formData.department} onChange={handleInputChange} icon={Building} label="Department *" options={departments} placeholder="Select Department" />
+                      <SelectField
+                        name="department"
+                        value={formData.department}
+                        onChange={handleInputChange}
+                        icon={Building}
+                        label="Department *"
+                        options={departments}
+                        placeholder="Select Department"
+                        disabled={userType === 'teacher' && !!localStorage.getItem('department')}
+                      />
                       <SelectField name="year" value={formData.year} onChange={handleInputChange} icon={Calendar} label="Year *" options={years} placeholder="Select Academic Year" />
                       <SelectField name="division" value={formData.division} onChange={handleInputChange} icon={Users} label="Division *" options={divisions} placeholder="Select Division" prefix="Division " />
                       <SelectField name="semester" value={formData.semester} onChange={handleInputChange} icon={BookOpen} label="Semester *" options={semesters} placeholder="Select Semester" prefix="Semester " />
@@ -193,17 +216,17 @@ export default function StudentRegistrationForm() {
               </form>
             </div>
           ) : (
-            <div className="bg-white/90 backdrop-blur-lg rounded-2xl p-6 border-2 border-slate-200 shadow-2xl">
+            <div className="bg-white/90 backdrop-blur-lg rounded-2xl p-6 sm:p-8 border-2 border-slate-200 shadow-2xl">
               <div className="text-center mb-6">
-                <h2 className="text-3xl font-bold text-slate-900 mb-2">Face Recognition Setup</h2>
-                <p className="text-slate-600">Capture 5 clear photos for accurate face recognition</p>
+                <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-2">Face Recognition Setup</h2>
+                <p className="text-slate-600 text-sm sm:text-base">Capture 5 clear photos for accurate face recognition</p>
               </div>
               <MultiCameraCapture onCapture={handlePhotoCapture} />
-              <div className="mt-6 flex gap-4">
+              <div className="mt-6 flex justify-center max-w-lg mx-auto">
                 <button onClick={() => setStep(1)}
-                  className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-semibold border-2 border-slate-300 hover:border-slate-400 transition-all duration-300 transform hover:scale-105 flex items-center justify-center gap-2">
+                  className="w-full py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-semibold border-2 border-slate-300 hover:border-slate-400 transition-all duration-300 transform hover:scale-[1.02] flex items-center justify-center gap-2 text-sm">
                   <ArrowLeft className="w-4 h-4" />
-                  Back to Form
+                  Back to Student Details
                 </button>
               </div>
             </div>
