@@ -218,8 +218,8 @@ export default function TeacherUpdateDetails() {
   }
   if (isAuthed === false) return null
 
-  const inputCls = 'w-full bg-white border-2 border-slate-300 hover:border-slate-400 focus:border-blue-600 rounded-2xl px-4 py-2.5 text-slate-900 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-100 transition-all placeholder:text-slate-400 shadow-xs'
-  const selectCls = 'w-full bg-white border-2 border-slate-300 hover:border-slate-400 focus:border-blue-600 rounded-2xl px-4 py-2.5 text-slate-900 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-100 transition-all shadow-xs cursor-pointer'
+  const inputCls = 'w-full bg-white border border-slate-300 hover:border-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/15 rounded-2xl px-4 py-2.5 text-slate-900 text-sm font-medium focus:outline-none transition-all duration-200 ease-out placeholder:text-slate-400 shadow-xs'
+  const selectCls = 'w-full bg-white border border-slate-300 hover:border-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/15 rounded-2xl px-4 py-2.5 text-slate-900 text-sm font-medium focus:outline-none transition-all duration-200 ease-out shadow-xs cursor-pointer'
   const labelCls = 'block text-xs font-bold text-slate-700 uppercase tracking-wide mb-1.5'
 
   const statusBg = {
@@ -232,10 +232,10 @@ export default function TeacherUpdateDetails() {
   return (
     <div className="min-h-screen flex flex-col bg-slate-100">
       {/* Header */}
-      <header className="bg-white border-b-2 border-slate-200 shadow-xs flex-shrink-0">
+      <header className="bg-white border-b border-slate-200 shadow-xs flex-shrink-0">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3.5">
-            <div className="p-2.5 bg-emerald-600 rounded-2xl shadow-xs">
+            <div className="p-2.5 bg-emerald-600 rounded-2xl shadow-xs transition-transform duration-200 hover:scale-105">
               <Edit3 className="w-6 h-6 text-white" />
             </div>
             <div>
@@ -246,7 +246,7 @@ export default function TeacherUpdateDetails() {
 
           <button
             onClick={() => navigate(dashboardPath)}
-            className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-sm font-bold transition-colors shadow-xs"
+            className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 active:scale-[0.97] text-white rounded-2xl text-sm font-bold transition-all duration-200 ease-out shadow-xs hover:shadow-md"
           >
             <LayoutDashboard className="w-4 h-4" />
             Dashboard
@@ -257,8 +257,8 @@ export default function TeacherUpdateDetails() {
       {/* Main Container */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-6 flex flex-col gap-5">
         {/* Advanced Search Filter Card */}
-        <div className="bg-white rounded-3xl shadow-md border-2 border-slate-300 p-5">
-          <div className="flex items-center justify-between mb-4 pb-3 border-b-2 border-slate-100">
+        <div className="bg-white rounded-3xl shadow-sm hover:shadow-md border border-slate-200/90 p-5 transition-all duration-300">
+          <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-100">
             <div className="flex items-center gap-2">
               <Filter className="w-5 h-5 text-blue-600" />
               <h2 className="text-lg font-black text-slate-900">Search & Filter Students</h2>
@@ -266,14 +266,14 @@ export default function TeacherUpdateDetails() {
             <div className="flex items-center gap-2">
               <button
                 onClick={clearFilters}
-                className="flex items-center gap-1.5 px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 text-xs font-bold rounded-xl transition-colors"
+                className="flex items-center gap-1.5 px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 active:scale-[0.97] border border-slate-200 text-slate-700 text-xs font-bold rounded-xl shadow-xs hover:shadow-sm transition-all duration-200 ease-out"
               >
                 <X className="w-3.5 h-3.5" /> Clear Filters
               </button>
               <button
                 onClick={searchStudents}
                 disabled={searching}
-                className="flex items-center gap-1.5 px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-bold rounded-2xl transition-colors shadow-xs"
+                className="flex items-center gap-1.5 px-5 py-2 bg-blue-600 hover:bg-blue-700 active:scale-[0.97] disabled:opacity-50 text-white text-sm font-bold rounded-2xl transition-all duration-200 ease-out shadow-xs hover:shadow-md"
               >
                 <Search className="w-4 h-4" />
                 {searching ? 'Searching...' : 'Search'}
@@ -307,9 +307,9 @@ export default function TeacherUpdateDetails() {
             </div>
 
             {teacherDept ? (
-              <div className="flex items-center justify-between bg-blue-50 border-2 border-blue-400 rounded-2xl px-3.5 py-2 text-blue-950 text-sm font-bold shadow-xs">
+              <div className="flex items-center justify-between bg-blue-50/80 border border-blue-300 rounded-2xl px-3.5 py-2 text-blue-950 text-sm font-bold shadow-xs transition-all duration-200">
                 <span className="truncate font-bold">{teacherDept}</span>
-                <span className="text-[10px] bg-blue-600 text-white font-extrabold px-2 py-0.5 rounded-lg uppercase tracking-wider ml-1.5 shrink-0">Locked</span>
+                <span className="text-[10px] bg-blue-600 text-white font-extrabold px-2 py-0.5 rounded-lg uppercase tracking-wider ml-1.5 shrink-0 shadow-2xs">Locked</span>
               </div>
             ) : (
               <select name="department" value={searchFilters.department} onChange={handleFilterChange} className={selectCls}>
@@ -332,7 +332,7 @@ export default function TeacherUpdateDetails() {
 
         {/* Status banner */}
         {status.msg && (
-          <div className={`rounded-2xl border px-4 py-3 text-base font-semibold ${statusBg[status.type] || statusBg.info}`}>
+          <div className={`rounded-2xl border px-4 py-3 text-base font-semibold shadow-xs animate-fade-in transition-all duration-300 ${statusBg[status.type] || statusBg.info}`}>
             {status.type === 'success' && '✅ '}{status.type === 'error' && '❌ '}{status.msg}
           </div>
         )}
@@ -340,13 +340,13 @@ export default function TeacherUpdateDetails() {
         {/* Results & Form Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 flex-1 min-h-[500px]">
           {/* Search Results List - 5 cols */}
-          <div className="lg:col-span-5 bg-white rounded-3xl shadow-md border-2 border-slate-300 flex flex-col overflow-hidden">
-            <div className="px-5 py-3.5 border-b-2 border-slate-200 bg-slate-50 flex items-center justify-between">
+          <div className="lg:col-span-5 bg-white rounded-3xl shadow-sm hover:shadow-md border border-slate-200/90 flex flex-col overflow-hidden transition-all duration-300">
+            <div className="px-5 py-3.5 border-b border-slate-100 bg-slate-50/70 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Users className="w-5 h-5 text-blue-600" />
                 <h2 className="font-bold text-slate-900 text-base">Search Results</h2>
               </div>
-              <span className="text-xs bg-slate-200 text-slate-800 font-bold px-2 py-0.5 rounded-lg">
+              <span className="text-xs bg-slate-200/70 text-slate-800 font-bold px-2 py-0.5 rounded-lg">
                 {searchResults.length} {searchResults.length === 1 ? 'student' : 'students'}
               </span>
             </div>
@@ -358,8 +358,8 @@ export default function TeacherUpdateDetails() {
                   <p className="text-sm text-slate-600 font-semibold">Loading records...</p>
                 </div>
               ) : searchResults.length === 0 ? (
-                <div className="text-center py-16 text-slate-500 bg-slate-50 m-2 rounded-2xl border-2 border-dashed border-slate-200">
-                  <div className="w-16 h-16 bg-white border-2 border-slate-200 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-xs">
+                <div className="text-center py-16 text-slate-500 bg-slate-50/70 m-2 rounded-2xl border-2 border-dashed border-slate-200 animate-fade-in">
+                  <div className="w-16 h-16 bg-white border border-slate-200 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-xs">
                     <Search className="w-8 h-8 text-slate-400" />
                   </div>
                   <p className="text-sm font-bold text-slate-800">No students loaded</p>
@@ -374,32 +374,32 @@ export default function TeacherUpdateDetails() {
                     <div
                       key={s._id}
                       onClick={() => selectStudent(s)}
-                      className={`group relative flex items-center gap-3.5 p-3.5 rounded-2xl cursor-pointer transition-all border-2 ${
+                      className={`group relative flex items-center gap-3.5 p-3.5 rounded-2xl cursor-pointer transition-all duration-200 ease-out border ${
                         selected
-                          ? 'bg-blue-50/90 border-blue-600 shadow-md ring-2 ring-blue-200'
-                          : 'bg-white border-slate-200 hover:border-blue-400 hover:bg-blue-50/40 hover:shadow-sm'
+                          ? 'bg-blue-50/95 border-blue-500 shadow-md ring-2 ring-blue-500/20 translate-x-0.5'
+                          : 'bg-white border-slate-200/80 hover:border-blue-300 hover:bg-blue-50/40 hover:shadow-md hover:-translate-y-0.5 active:scale-[0.99]'
                       }`}
                     >
                       {/* Avatar */}
-                      <div className={`flex-shrink-0 w-11 h-11 rounded-2xl ${getAvatarColor(s.studentId)} flex items-center justify-center text-white font-black text-sm shadow-xs`}>
+                      <div className={`flex-shrink-0 w-11 h-11 rounded-2xl ${getAvatarColor(s.studentId)} flex items-center justify-center text-white font-black text-sm shadow-xs transition-transform duration-200 group-hover:scale-105`}>
                         {getInitials(s.studentName)}
                       </div>
 
                       {/* Info */}
                       <div className="flex-1 min-w-0">
-                        <div className={`font-bold text-base truncate ${selected ? 'text-blue-900' : 'text-slate-900'}`}>
+                        <div className={`font-bold text-base truncate transition-colors duration-150 ${selected ? 'text-blue-900' : 'text-slate-900 group-hover:text-blue-600'}`}>
                           {s.studentName}
                         </div>
                         <div className="text-sm font-semibold text-slate-600 truncate mt-0.5">
                           <span className="font-bold text-slate-800">{s.studentId}</span> • <span>{s.department}</span>
                         </div>
                         <div className="flex items-center gap-2 mt-1.5">
-                          <span className="text-xs bg-slate-100 border border-slate-300 text-slate-800 px-2.5 py-0.5 rounded-lg font-bold shadow-2xs">{s.year}</span>
-                          <span className="text-xs bg-slate-100 border border-slate-300 text-slate-800 px-2.5 py-0.5 rounded-lg font-bold shadow-2xs">Div {s.division}</span>
+                          <span className="text-xs bg-slate-100 border border-slate-200 text-slate-800 px-2.5 py-0.5 rounded-lg font-bold shadow-2xs">{s.year}</span>
+                          <span className="text-xs bg-slate-100 border border-slate-200 text-slate-800 px-2.5 py-0.5 rounded-lg font-bold shadow-2xs">Div {s.division}</span>
                         </div>
                       </div>
 
-                      <ChevronRight className={`w-5 h-5 transition-colors ${selected ? 'text-blue-600' : 'text-slate-400 group-hover:text-slate-600'}`} />
+                      <ChevronRight className={`w-5 h-5 transition-all duration-200 ${selected ? 'text-blue-600 translate-x-0.5' : 'text-slate-400 group-hover:text-blue-500 group-hover:translate-x-0.5'}`} />
                     </div>
                   )
                 })
@@ -408,22 +408,22 @@ export default function TeacherUpdateDetails() {
           </div>
 
           {/* Student Edit Form - 7 cols */}
-          <div className="lg:col-span-7 bg-white rounded-3xl shadow-md border-2 border-slate-300 flex flex-col overflow-hidden">
-            <div className="px-5 py-3.5 border-b-2 border-slate-200 bg-slate-50 flex items-center justify-between">
+          <div className="lg:col-span-7 bg-white rounded-3xl shadow-sm hover:shadow-md border border-slate-200/90 flex flex-col overflow-hidden transition-all duration-300">
+            <div className="px-5 py-3.5 border-b border-slate-100 bg-slate-50/70 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Edit3 className="w-5 h-5 text-emerald-600" />
                 <h2 className="font-bold text-slate-900 text-base">Student Information</h2>
               </div>
               {hasChanges() && (
-                <span className="text-xs font-bold px-2.5 py-1 bg-amber-50 border border-amber-300 text-amber-800 rounded-xl">
+                <span className="text-xs font-bold px-2.5 py-1 bg-amber-50 border border-amber-300 text-amber-800 rounded-xl animate-scale-in">
                   Unsaved Changes
                 </span>
               )}
             </div>
 
             {!student ? (
-              <div className="flex-1 flex flex-col items-center justify-center text-center p-12 m-5 bg-slate-50 rounded-3xl border-2 border-dashed border-slate-300">
-                <div className="w-16 h-16 bg-white border-2 border-slate-200 rounded-2xl flex items-center justify-center mb-4 shadow-sm">
+              <div className="flex-1 flex flex-col items-center justify-center text-center p-12 m-5 bg-slate-50/70 rounded-3xl border-2 border-dashed border-slate-200 animate-fade-in">
+                <div className="w-16 h-16 bg-white border border-slate-200 rounded-2xl flex items-center justify-center mb-4 shadow-xs">
                   <User className="w-8 h-8 text-slate-400" />
                 </div>
                 <h3 className="text-base font-bold text-slate-800 mb-1">No Student Selected</h3>
@@ -432,15 +432,15 @@ export default function TeacherUpdateDetails() {
                 </p>
               </div>
             ) : (
-              <form onSubmit={handleUpdate} className="flex-1 overflow-y-auto p-6 space-y-6">
+              <form onSubmit={handleUpdate} key={student._id} className="flex-1 overflow-y-auto p-6 space-y-6 animate-fade-in">
                 {/* Active Student summary pill */}
                 <div className="bg-blue-50/80 border border-blue-200/70 rounded-2xl p-4 flex items-center justify-between">
                   <div>
                     <h4 className="text-base font-bold text-blue-900">{originalStudent?.studentName}</h4>
-                    <p className="text-sm font-medium text-blue-700 mt-0.5">ID: {originalStudent?.studentId} · {originalStudent?.department}</p>
+                    <p className="text-sm font-medium text-blue-700 mt-0.5">ID: {originalStudent?.studentId} • {originalStudent?.department}</p>
                   </div>
                   {originalStudent?.updated_at && (
-                    <span className="text-xs text-blue-600 bg-white/70 px-2.5 py-1 rounded-md border border-blue-100">
+                    <span className="text-xs text-blue-600 bg-white/80 px-2.5 py-1 rounded-lg border border-blue-100 shadow-2xs">
                       Updated: {new Date(originalStudent.updated_at * 1000).toLocaleDateString()}
                     </span>
                   )}
@@ -518,7 +518,7 @@ export default function TeacherUpdateDetails() {
                         )}
                       </div>
                       {userType === 'teacher' ? (
-                        <div className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-gray-600 text-base font-medium">
+                        <div className="w-full bg-slate-100/90 border border-slate-300 rounded-2xl px-4 py-3 text-slate-700 text-base font-medium">
                           {student.department || 'Not specified'}
                         </div>
                       ) : (
@@ -557,7 +557,7 @@ export default function TeacherUpdateDetails() {
                   <button
                     type="submit"
                     disabled={updating || !hasChanges()}
-                    className="flex-1 py-3.5 px-5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed text-white text-base font-bold rounded-2xl transition-colors shadow-sm flex items-center justify-center gap-2"
+                    className="flex-1 py-3.5 px-5 bg-emerald-500 hover:bg-emerald-600 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed text-white text-base font-bold rounded-2xl transition-all duration-200 ease-out shadow-sm hover:shadow-md flex items-center justify-center gap-2"
                   >
                     <Save className="w-4 h-4" />
                     {updating ? 'Saving...' : 'Save Changes'}
@@ -567,7 +567,7 @@ export default function TeacherUpdateDetails() {
                     type="button"
                     onClick={resetForm}
                     disabled={!hasChanges()}
-                    className="py-3.5 px-5 bg-gray-100 hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed text-gray-700 text-base font-semibold rounded-2xl transition-colors flex items-center gap-2"
+                    className="py-3.5 px-5 bg-gray-100 hover:bg-gray-200 active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed text-gray-700 text-base font-semibold rounded-2xl transition-all duration-200 ease-out flex items-center gap-2"
                   >
                     <RotateCcw className="w-4 h-4" /> Reset
                   </button>
@@ -577,7 +577,7 @@ export default function TeacherUpdateDetails() {
                       type="button"
                       onClick={handleDelete}
                       disabled={updating}
-                      className="py-3.5 px-5 bg-red-50 hover:bg-red-100 border border-red-200 text-red-600 text-base font-semibold rounded-2xl transition-colors flex items-center gap-2"
+                      className="py-3.5 px-5 bg-red-50 hover:bg-red-100 active:scale-[0.98] border border-red-200 text-red-600 text-base font-semibold rounded-2xl transition-all duration-200 ease-out flex items-center gap-2"
                     >
                       <Trash2 className="w-4 h-4" /> Delete
                     </button>

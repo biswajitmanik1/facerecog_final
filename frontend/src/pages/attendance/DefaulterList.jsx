@@ -22,9 +22,11 @@ import autoTable from 'jspdf-autotable'
 export default function DefaulterList() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
+  const utype = localStorage.getItem('userType')
+  const teacherDept = utype === 'teacher' ? (localStorage.getItem('department') || '') : ''
 
   // Filters state
-  const [department, setDepartment] = useState(searchParams.get('department') || '')
+  const [department, setDepartment] = useState(teacherDept || searchParams.get('department') || '')
   const [year, setYear] = useState(searchParams.get('year') || '')
   const [division, setDivision] = useState(searchParams.get('division') || '')
   const [subject, setSubject] = useState(searchParams.get('subject') || '')
@@ -53,18 +55,18 @@ export default function DefaulterList() {
   const [tableSearch, setTableSearch] = useState('')
 
   const dashboardPath = useMemo(() => {
-    const utype = localStorage.getItem('userType')
     if (utype === 'admin') return '/admin/dashboard'
     if (utype === 'teacher') return '/teacher/dashboard'
     return '/dashboard'
-  }, [])
+  }, [utype])
 
   const fetchDefaulters = useCallback(async () => {
     setLoading(true)
     setErrorMsg('')
     try {
+      const activeDept = teacherDept || department
       const params = new URLSearchParams()
-      if (department) params.set('department', department)
+      if (activeDept) params.set('department', activeDept)
       if (year) params.set('year', year)
       if (division) params.set('division', division)
       if (subject) params.set('subject', subject)
@@ -89,14 +91,14 @@ export default function DefaulterList() {
     } finally {
       setLoading(false)
     }
-  }, [department, year, division, subject, threshold, month])
+  }, [department, teacherDept, year, division, subject, threshold, month])
 
-  // Automatically fetch on mount if filters provided in query params
+  // Automatically fetch on mount if filters provided in query params or teacher has assigned department
   useEffect(() => {
-    if (searchParams.get('department') || searchParams.get('year') || searchParams.get('division')) {
+    if (teacherDept || searchParams.get('department') || searchParams.get('year') || searchParams.get('division')) {
       fetchDefaulters()
     }
-  }, [fetchDefaulters, searchParams])
+  }, [fetchDefaulters, searchParams, teacherDept])
 
   // Filter table data by search query
   const displayedStudents = useMemo(() => {
@@ -422,15 +424,31 @@ export default function DefaulterList() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-5">
             <div>
-              <label className={labelCls}>Department</label>
-              <select value={department} onChange={e => setDepartment(e.target.value)} className={selectCls}>
-                <option value="">All Departments</option>
-                {['Computer Science', 'Information Technology', 'Electronics', 'Mechanical', 'Civil'].map(d => (
-                  <option key={d} value={d}>
-                    {d}
-                  </option>
-                ))}
-              </select>
+              <div className="flex items-center justify-between mb-2">
+                <label className={labelCls}>Department</label>
+                {teacherDept && (
+                  <span className="text-[10px] bg-blue-100 text-blue-800 font-bold px-1.5 py-0.5 rounded uppercase tracking-wider">
+                    Assigned
+                  </span>
+                )}
+              </div>
+              {teacherDept ? (
+                <div className="flex items-center justify-between bg-blue-50/80 border border-blue-300 rounded-xl px-4 py-3 text-blue-950 text-base font-bold shadow-xs transition-all duration-200">
+                  <span className="truncate font-bold">{teacherDept}</span>
+                  <span className="text-xs bg-blue-600 text-white font-extrabold px-2 py-0.5 rounded-lg uppercase tracking-wider ml-1.5 shrink-0 shadow-2xs">
+                    Locked
+                  </span>
+                </div>
+              ) : (
+                <select value={department} onChange={e => setDepartment(e.target.value)} className={selectCls}>
+                  <option value="">All Departments</option>
+                  {['Computer Science', 'Information Technology', 'Electronics', 'Mechanical', 'Civil'].map(d => (
+                    <option key={d} value={d}>
+                      {d}
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
 
             <div>
@@ -516,7 +534,7 @@ export default function DefaulterList() {
               <button
                 type="button"
                 onClick={() => {
-                  setDepartment('')
+                  setDepartment(teacherDept || '')
                   setYear('')
                   setDivision('')
                   setSubject('')

@@ -71,26 +71,30 @@ async def update_teacher(
     db: Session = Depends(get_db)
 ):
     data = await request.json()
-    teacher = db.query(AuthTeacher).get(teacher_id)
+    teacher = db.query(AuthTeacher).filter(AuthTeacher.id == teacher_id).first()
     if not teacher:
         return JSONResponse(status_code=404, content={"success": False, "error": "Teacher not found"})
 
-    if data.get('email') and data.get('email') != teacher.email:
+    if data.get('email') and data.get('email').strip().lower() != teacher.email.lower():
+        new_email = data['email'].strip()
         existing = db.query(AuthTeacher).filter(
-            AuthTeacher.email == data.get('email'),
+            AuthTeacher.email.ilike(new_email),
             AuthTeacher.id != teacher.id
         ).first()
         if existing:
-            return JSONResponse(status_code=400, content={"success": False, "error": "Email already registered as teacher"})
-        teacher.email = data['email']
+            return JSONResponse(status_code=400, content={"success": False, "error": f"Email '{new_email}' is already registered to another teacher"})
+        teacher.email = new_email
 
-    teacher.username = data.get('username', teacher.username)
-    teacher.employee_id = data.get('employeeId', teacher.employee_id)
-    teacher.department = data.get('department', teacher.department)
+    if 'username' in data and data['username'].strip():
+        teacher.username = data['username'].strip()
+    if 'employeeId' in data or 'employee_id' in data:
+        teacher.employee_id = (data.get('employeeId') or data.get('employee_id') or '').strip()
+    if 'department' in data:
+        teacher.department = (data.get('department') or '').strip()
     if data.get('status') in ('active', 'inactive'):
         teacher.status = data['status']
-    if data.get('password'):
-        teacher.password = bcrypt.hashpw(data['password'].encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+    if data.get('password') and data['password'].strip():
+        teacher.password = bcrypt.hashpw(data['password'].strip().encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
 
     db.commit()
     return {"success": True, "message": "Teacher account updated", "teacher": teacher.to_dict()}

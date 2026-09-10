@@ -149,17 +149,17 @@ export default function UpdateStudentDetails() {
     info: 'bg-blue-50 border-blue-200 text-blue-700',
   }
 
-  const inputCls = 'w-full bg-white border-2 border-slate-300 hover:border-slate-400 focus:border-blue-600 rounded-2xl px-4 py-2.5 text-slate-900 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-100 transition-all placeholder:text-slate-400 shadow-xs'
-  const selectCls = 'w-full bg-white border-2 border-slate-300 hover:border-slate-400 focus:border-blue-600 rounded-2xl px-4 py-2.5 text-slate-900 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-100 transition-all shadow-xs cursor-pointer'
+  const inputCls = 'w-full bg-white border border-slate-300 hover:border-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/15 rounded-2xl px-4 py-2.5 text-slate-900 text-sm font-medium focus:outline-none transition-all duration-200 ease-out placeholder:text-slate-400 shadow-xs'
+  const selectCls = 'w-full bg-white border border-slate-300 hover:border-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/15 rounded-2xl px-4 py-2.5 text-slate-900 text-sm font-medium focus:outline-none transition-all duration-200 ease-out shadow-xs cursor-pointer'
   const labelCls = 'block text-xs font-bold text-slate-700 uppercase tracking-wide mb-1.5'
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-100">
       {/* Header */}
-      <header className="bg-white border-b-2 border-slate-200 shadow-xs flex-shrink-0">
+      <header className="bg-white border-b border-slate-200 shadow-xs flex-shrink-0">
         <div className="px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-blue-600 rounded-2xl shadow-xs">
+            <div className="p-2.5 bg-blue-600 rounded-2xl shadow-xs transition-transform duration-200 hover:scale-105">
               <Edit3 className="w-5 h-5 text-white" />
             </div>
             <div>
@@ -173,7 +173,7 @@ export default function UpdateStudentDetails() {
           </div>
           <button
             onClick={() => navigate(dashboardPath)}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-sm font-bold transition-colors shadow-xs"
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 active:scale-[0.97] text-white rounded-2xl text-sm font-bold transition-all duration-200 ease-out shadow-xs hover:shadow-md"
           >
             <LayoutDashboard className="w-4 h-4" />
             Dashboard
@@ -186,24 +186,24 @@ export default function UpdateStudentDetails() {
 
           {/* Filter Bar — staff only */}
           {isStaff && (
-            <div className="bg-white rounded-3xl shadow-md border-2 border-slate-300 p-5 flex-shrink-0">
-              <div className="flex items-center justify-between mb-3.5 pb-2.5 border-b-2 border-slate-100">
+            <div className="bg-white rounded-3xl shadow-sm hover:shadow-md border border-slate-200/90 p-5 flex-shrink-0 transition-all duration-300">
+              <div className="flex items-center justify-between mb-3.5 pb-2.5 border-b border-slate-100">
                 <div className="flex items-center gap-2 text-slate-900 font-bold text-base">
                   <Filter className="w-4 h-4 text-blue-600" />
                   Filter Students
                 </div>
                 <button
                   onClick={clearFilters}
-                  className="flex items-center gap-1.5 px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-xs transition-colors"
+                  className="flex items-center gap-1.5 px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 active:scale-[0.97] text-white text-xs font-bold rounded-xl shadow-xs hover:shadow-sm transition-all duration-200 ease-out"
                 >
                   <X className="w-3.5 h-3.5" /> Clear All Filters
                 </button>
               </div>
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
                 {teacherDept ? (
-                  <div className="flex items-center justify-between bg-blue-50 border-2 border-blue-400 rounded-2xl px-3.5 py-2 text-blue-950 text-sm font-bold shadow-xs">
+                  <div className="flex items-center justify-between bg-blue-50/80 border border-blue-300 rounded-2xl px-3.5 py-2 text-blue-950 text-sm font-bold shadow-xs transition-all duration-200">
                     <span className="truncate">{teacherDept}</span>
-                    <span className="text-[10px] bg-blue-600 text-white font-extrabold px-2 py-0.5 rounded-lg uppercase tracking-wider ml-1.5 shrink-0">Locked</span>
+                    <span className="text-[10px] bg-blue-600 text-white font-extrabold px-2 py-0.5 rounded-lg uppercase tracking-wider ml-1.5 shrink-0 shadow-2xs">Locked</span>
                   </div>
                 ) : (
                   <select name="department" value={filters.department} onChange={handleFilterChange} className={selectCls}>
@@ -230,7 +230,7 @@ export default function UpdateStudentDetails() {
                     className={inputCls + ' pl-10'} />
                 </div>
               </div>
-              <div className="mt-3.5 flex items-center gap-2 text-xs font-semibold text-slate-700 bg-slate-100 border border-slate-300 px-3 py-1.5 rounded-xl w-fit">
+              <div className="mt-3.5 flex items-center gap-2 text-xs font-semibold text-slate-700 bg-slate-100/80 border border-slate-200 px-3 py-1.5 rounded-xl w-fit">
                 <Users className="w-4 h-4 text-emerald-600" />
                 <span>Showing <strong className="text-slate-900 font-bold">{students.length}</strong> of <strong className="text-slate-900 font-bold">{allStudents.length}</strong> students</span>
               </div>
@@ -239,7 +239,7 @@ export default function UpdateStudentDetails() {
 
           {/* Status bar */}
           {status.msg && (
-            <div className={`rounded-2xl border-2 px-4 py-3 text-sm font-bold flex-shrink-0 shadow-xs ${statusBg[status.type] || statusBg.info}`}>
+            <div className={`rounded-2xl border px-4 py-3 text-sm font-bold flex-shrink-0 shadow-xs animate-fade-in transition-all duration-300 ${statusBg[status.type] || statusBg.info}`}>
               {status.type === 'success' && '✅ '}{status.type === 'error' && '❌ '}{status.msg}
             </div>
           )}
@@ -248,13 +248,13 @@ export default function UpdateStudentDetails() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 flex-1 min-h-0">
 
             {/* Student List */}
-            <div className="bg-white rounded-3xl shadow-md border-2 border-slate-300 flex flex-col overflow-hidden">
-              <div className="px-5 py-3.5 border-b-2 border-slate-200 bg-slate-50 flex items-center justify-between">
+            <div className="bg-white rounded-3xl shadow-sm hover:shadow-md border border-slate-200/90 flex flex-col overflow-hidden transition-all duration-300">
+              <div className="px-5 py-3.5 border-b border-slate-100 bg-slate-50/70 flex items-center justify-between">
                 <div className="flex items-center gap-2 text-slate-900 font-bold text-base">
                   <Users className="w-5 h-5 text-blue-600" />
                   <span>{isStaff ? 'Students' : 'Student Record'}</span>
                 </div>
-                <span className="text-xs bg-slate-200 text-slate-800 font-bold px-2 py-0.5 rounded-lg">
+                <span className="text-xs bg-slate-200/70 text-slate-800 font-bold px-2 py-0.5 rounded-lg">
                   {students.length} Total
                 </span>
               </div>
@@ -266,14 +266,14 @@ export default function UpdateStudentDetails() {
                     <p className="text-slate-600 font-semibold text-sm">Loading records...</p>
                   </div>
                 ) : students.length === 0 ? (
-                  <div className="text-center py-12 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 m-2">
+                  <div className="text-center py-12 bg-slate-50/70 rounded-2xl border-2 border-dashed border-slate-200 m-2 animate-fade-in">
                     <div className="text-4xl mb-2">📚</div>
                     <p className="text-slate-700 font-bold text-sm mb-3">
                       {isStaff ? 'No students found with current filters.' : 'No student record found for your email.'}
                     </p>
                     {userType === 'student' && (
                       <button onClick={() => navigate('/student/registrationform')}
-                        className="px-4 py-2 bg-blue-600 text-white font-bold rounded-2xl text-xs hover:bg-blue-700 shadow-sm transition-colors">
+                        className="px-4 py-2 bg-blue-600 text-white font-bold rounded-2xl text-xs hover:bg-blue-700 active:scale-[0.97] shadow-sm hover:shadow-md transition-all duration-200 ease-out">
                         Register as Student
                       </button>
                     )}
@@ -285,28 +285,28 @@ export default function UpdateStudentDetails() {
                       <div
                         key={student._id}
                         onClick={() => handleStudentSelect(student)}
-                        className={`group relative flex items-center gap-3.5 p-3.5 rounded-2xl cursor-pointer transition-all border-2 ${
+                        className={`group relative flex items-center gap-3.5 p-3.5 rounded-2xl cursor-pointer transition-all duration-200 ease-out border ${
                           selected
-                            ? 'bg-blue-50/90 border-blue-600 shadow-md ring-2 ring-blue-200'
-                            : 'bg-white border-slate-200 hover:border-blue-400 hover:bg-blue-50/40 hover:shadow-sm'
+                            ? 'bg-blue-50/95 border-blue-500 shadow-md ring-2 ring-blue-500/20 translate-x-0.5'
+                            : 'bg-white border-slate-200/80 hover:border-blue-300 hover:bg-blue-50/40 hover:shadow-md hover:-translate-y-0.5 active:scale-[0.99]'
                         }`}
                       >
                         {/* Avatar */}
-                        <div className={`flex-shrink-0 w-11 h-11 rounded-2xl ${getAvatarColor(student.studentId)} flex items-center justify-center text-white font-black text-sm shadow-xs`}>
+                        <div className={`flex-shrink-0 w-11 h-11 rounded-2xl ${getAvatarColor(student.studentId)} flex items-center justify-center text-white font-black text-sm shadow-xs transition-transform duration-200 group-hover:scale-105`}>
                           {getInitials(student.studentName)}
                         </div>
 
                         {/* Info */}
                         <div className="flex-1 min-w-0">
-                          <div className={`font-bold text-base truncate ${selected ? 'text-blue-900' : 'text-slate-900'}`}>
+                          <div className={`font-bold text-base truncate transition-colors duration-150 ${selected ? 'text-blue-900' : 'text-slate-900 group-hover:text-blue-600'}`}>
                             {student.studentName}
                           </div>
                           <div className="text-sm font-semibold text-slate-600 truncate mt-0.5">
                             <span className="font-bold text-slate-800">{student.studentId}</span> • <span>{student.department}</span>
                           </div>
                           <div className="flex items-center gap-2 mt-1.5">
-                            <span className="text-xs bg-slate-100 border border-slate-300 text-slate-800 px-2.5 py-0.5 rounded-lg font-bold shadow-2xs">{student.year}</span>
-                            <span className="text-xs bg-slate-100 border border-slate-300 text-slate-800 px-2.5 py-0.5 rounded-lg font-bold shadow-2xs">Div {student.division}</span>
+                            <span className="text-xs bg-slate-100 border border-slate-200 text-slate-800 px-2.5 py-0.5 rounded-lg font-bold shadow-2xs">{student.year}</span>
+                            <span className="text-xs bg-slate-100 border border-slate-200 text-slate-800 px-2.5 py-0.5 rounded-lg font-bold shadow-2xs">Div {student.division}</span>
                           </div>
                         </div>
 
@@ -315,13 +315,13 @@ export default function UpdateStudentDetails() {
                           {((userType === 'admin') || (userType === 'student' && student.email === userEmail)) && (
                             <button
                               onClick={e => { e.stopPropagation(); handleDelete(student._id, student.studentName) }}
-                              className="p-2 rounded-xl text-red-500 hover:bg-red-100 hover:text-red-700 transition-colors opacity-0 group-hover:opacity-100"
+                              className="p-2 rounded-xl text-red-500 hover:bg-red-100 hover:text-red-700 active:scale-90 transition-all duration-200 opacity-0 group-hover:opacity-100"
                               title="Delete"
                             >
                               <Trash2 className="w-4 h-4" />
                             </button>
                           )}
-                          <ChevronRight className={`w-5 h-5 transition-colors ${selected ? 'text-blue-600' : 'text-slate-400 group-hover:text-slate-600'}`} />
+                          <ChevronRight className={`w-5 h-5 transition-all duration-200 ${selected ? 'text-blue-600 translate-x-0.5' : 'text-slate-400 group-hover:text-blue-500 group-hover:translate-x-0.5'}`} />
                         </div>
                       </div>
                     )
@@ -331,18 +331,18 @@ export default function UpdateStudentDetails() {
             </div>
 
             {/* Edit Form */}
-            <div className="bg-white rounded-3xl shadow-md border-2 border-slate-300 flex flex-col overflow-hidden">
-              <div className="px-5 py-3.5 border-b-2 border-slate-200 bg-slate-50 flex items-center gap-2">
+            <div className="bg-white rounded-3xl shadow-sm hover:shadow-md border border-slate-200/90 flex flex-col overflow-hidden transition-all duration-300">
+              <div className="px-5 py-3.5 border-b border-slate-100 bg-slate-50/70 flex items-center gap-2">
                 <Edit3 className="w-5 h-5 text-emerald-600" />
                 <h2 className="font-bold text-slate-900 text-base">Update Student Details</h2>
               </div>
 
               {selectedStudent ? (
-                <form onSubmit={handleUpdate} className="flex-1 overflow-y-auto p-5 space-y-5">
+                <form onSubmit={handleUpdate} key={selectedStudent._id} className="flex-1 overflow-y-auto p-5 space-y-5 animate-fade-in">
 
                   {/* Personal Info */}
                   <div>
-                    <div className="flex items-center gap-2 mb-3 pb-2 border-b-2 border-slate-100">
+                    <div className="flex items-center gap-2 mb-3 pb-2 border-b border-slate-100">
                       <User className="w-4 h-4 text-blue-600" />
                       <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">Personal Information</span>
                     </div>
@@ -386,7 +386,7 @@ export default function UpdateStudentDetails() {
 
                   {/* Academic Info */}
                   <div>
-                    <div className="flex items-center gap-2 mb-3 pb-2 border-b-2 border-slate-100">
+                    <div className="flex items-center gap-2 mb-3 pb-2 border-b border-slate-100">
                       <GraduationCap className="w-4 h-4 text-purple-600" />
                       <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">Academic Information</span>
                     </div>
@@ -399,7 +399,7 @@ export default function UpdateStudentDetails() {
                           )}
                         </div>
                         {userType === 'teacher' ? (
-                          <div className="w-full bg-slate-100 border-2 border-slate-300 rounded-2xl px-4 py-2.5 text-slate-900 text-sm font-bold shadow-xs">
+                          <div className="w-full bg-slate-100/90 border border-slate-300 rounded-2xl px-4 py-2.5 text-slate-900 text-sm font-bold shadow-xs">
                             {selectedStudent.department || 'Not specified'}
                           </div>
                         ) : (
@@ -434,13 +434,13 @@ export default function UpdateStudentDetails() {
                   </div>
 
                   <button type="submit" disabled={updating}
-                    className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-2xl transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md text-sm">
+                    className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white font-bold rounded-2xl transition-all duration-200 ease-out disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg text-sm">
                     {updating ? 'Saving...' : isStaff ? 'Save Changes' : 'Update My Details'}
                   </button>
                 </form>
               ) : (
-                <div className="flex-1 flex flex-col items-center justify-center text-center p-8 m-5 bg-slate-50 rounded-3xl border-2 border-dashed border-slate-300">
-                  <div className="w-16 h-16 bg-white border-2 border-slate-200 rounded-2xl flex items-center justify-center mb-4 shadow-sm">
+                <div className="flex-1 flex flex-col items-center justify-center text-center p-8 m-5 bg-slate-50/70 rounded-3xl border-2 border-dashed border-slate-200 animate-fade-in">
+                  <div className="w-16 h-16 bg-white border border-slate-200 rounded-2xl flex items-center justify-center mb-4 shadow-xs">
                     <Edit3 className="w-8 h-8 text-slate-400" />
                   </div>
                   <p className="text-slate-800 text-sm font-bold">

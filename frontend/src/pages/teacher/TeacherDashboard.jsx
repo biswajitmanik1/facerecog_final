@@ -100,10 +100,10 @@ export default function TeacherDashboard() {
   return (
     <div className="min-h-screen flex flex-col" style={{ background: '#eef2fb' }}>
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 shadow-sm flex-shrink-0">
+      <header className="bg-white border-b border-gray-200 shadow-xs flex-shrink-0">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3.5">
-            <div className="p-2.5 bg-blue-600 rounded-xl shadow-sm">
+            <div className="p-2.5 bg-blue-600 rounded-2xl shadow-sm transition-transform duration-200 hover:scale-105">
               <GraduationCap className="w-6 h-6 text-white" />
             </div>
             <div>
@@ -113,7 +113,7 @@ export default function TeacherDashboard() {
                   Welcome back, <span className="text-blue-600 font-semibold">{teacherName}</span>
                 </p>
                 {employeeId && (
-                  <span className="text-xs font-semibold px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-md">
+                  <span className="text-xs font-semibold px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-lg">
                     ID: {employeeId}
                   </span>
                 )}
@@ -123,7 +123,7 @@ export default function TeacherDashboard() {
 
           <button
             onClick={handleLogout}
-            className="flex items-center gap-2 px-4 py-2.5 text-red-600 border border-red-200 bg-red-50/50 hover:bg-red-100 rounded-xl transition-colors text-base font-medium"
+            className="flex items-center gap-2 px-4 py-2.5 text-red-600 border border-red-200 bg-red-50/50 hover:bg-red-100 active:scale-[0.97] rounded-2xl transition-all duration-200 ease-out text-base font-medium shadow-2xs hover:shadow-xs"
           >
             <LogOut className="w-4 h-4" />
             Sign Out
@@ -146,18 +146,18 @@ export default function TeacherDashboard() {
             <div
               key={idx}
               onClick={() => navigate(item.path)}
-              className="card-hover bg-white rounded-2xl p-6 cursor-pointer relative overflow-hidden shadow-sm border border-gray-100 flex flex-col justify-between"
+              className="card-hover bg-white rounded-3xl p-6 cursor-pointer relative overflow-hidden shadow-sm hover:shadow-xl border border-slate-100 flex flex-col justify-between active:scale-[0.99] transition-all duration-300"
             >
               {/* Decorative background circle */}
               <div className="absolute -bottom-8 -right-8 w-28 h-28 rounded-full opacity-10 bg-gray-400 pointer-events-none" />
 
               <div>
                 <div className="flex items-center justify-between mb-5">
-                  <div className={`card-icon p-3.5 rounded-xl ${item.iconBg} w-fit shadow-sm`}>
+                  <div className={`card-icon p-3.5 rounded-2xl ${item.iconBg} w-fit shadow-sm`}>
                     {item.icon}
                   </div>
                   {item.badge && (
-                    <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-rose-100 text-rose-700 border border-rose-200">
+                    <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-rose-100 text-rose-700 border border-rose-200 shadow-2xs">
                       {item.badge}
                     </span>
                   )}

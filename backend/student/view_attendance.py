@@ -5,10 +5,18 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
 from database import get_db
-from models import AttendanceRecord, Student, AuthUser
+from models import AttendanceRecord, Student, AuthUser, AuthTeacher
 from auth_utils import require_auth
 
 attendance_router = APIRouter()
+
+def get_teacher_department(current_user: dict, db: Session):
+    dept = current_user.get("department")
+    if not dept and current_user.get("role") == "teacher":
+        teacher = db.query(AuthTeacher).filter_by(email=current_user.get("email")).first()
+        if teacher:
+            dept = teacher.department
+    return dept
 
 def _apply_filters(query, model, date=None, department=None, year=None, division=None, subject=None):
     if date and hasattr(model, "date"):
@@ -37,6 +45,18 @@ async def get_attendance(
     division = request.query_params.get('division')
     subject = request.query_params.get('subject')
     student_id = request.query_params.get('student_id')
+
+    user_role = current_user.get("role")
+    teacher_dept = get_teacher_department(current_user, db) if user_role == "teacher" else None
+
+    # DBAC: Enforce department boundaries for teachers
+    if user_role == "teacher" and teacher_dept:
+        if department and department.strip().lower() != teacher_dept.strip().lower():
+            return JSONResponse(
+                status_code=403,
+                content={"success": False, "error": f"Unauthorized: You can only view attendance for your assigned department ({teacher_dept})."}
+            )
+        department = teacher_dept
 
     try:
         # Resolve student_id if it's an AuthUser username or email
@@ -102,6 +122,7 @@ async def get_attendance(
                         if present:
                             present_count += 1
                         attendance_list.append({
+                            "sessionId": str(sess.id),
                             "studentId": str(actual_student_id or student_id),
                             "studentName": entry.get("student_name") or (student_obj.student_name if student_obj else ""),
                             "date": str(sess.date),
@@ -116,6 +137,7 @@ async def get_attendance(
                         break
                 if not found:
                     attendance_list.append({
+                        "sessionId": str(sess.id),
                         "studentId": str(actual_student_id or student_id),
                         "studentName": student_obj.student_name if student_obj else f"Student {student_id}",
                         "date": str(sess.date),
@@ -145,77 +167,96 @@ async def get_attendance(
             }
 
         attendance_query = _apply_filters(db.query(AttendanceRecord), AttendanceRecord, date, department, year, division, subject)
-        attendance_doc = attendance_query.first()
+        attendance_docs = attendance_query.order_by(AttendanceRecord.created_at.asc()).all()
 
         roster_query = None
         if department or year or division:
             roster_query = _apply_filters(db.query(Student), Student, department=department, year=year, division=division)
         roster = roster_query.all() if roster_query is not None else []
 
-        session_map = {}
-        if attendance_doc:
-            for s in (attendance_doc.students or []):
-                sid = s.get("student_id")
-                session_map[sid] = s
-
         attendance_list = []
-        seen_students = set()
+        if attendance_docs:
+            for doc in attendance_docs:
+                session_map = {}
+                for s in (doc.students or []):
+                    sid = s.get("student_id")
+                    if sid:
+                        session_map[str(sid)] = s
 
-        for student in roster:
-            sid = student.student_id
-            if not sid or sid in seen_students:
-                continue
-            seen_students.add(sid)
-            if student_id and sid not in [student_id, actual_student_id]:
-                continue
+                seen_in_session = set()
+                for student in roster:
+                    sid = str(student.student_id)
+                    if not sid or sid in seen_in_session:
+                        continue
+                    seen_in_session.add(sid)
+                    if student_id and sid not in [str(student_id), str(actual_student_id)]:
+                        continue
 
-            sess = session_map.get(sid, None)
-            if sess:
-                present = bool(sess.get("present"))
-                marked_at = sess.get("marked_at")
-            else:
-                present = False
-                marked_at = None
+                    sess = session_map.get(sid, None)
+                    if sess:
+                        present = bool(sess.get("present"))
+                        marked_at = sess.get("marked_at")
+                    else:
+                        present = False
+                        marked_at = None
 
-            attendance_list.append({
-                "studentId": str(sid) if sid is not None else "",
-                "studentName": student.student_name,
-                "date": str(attendance_doc.date) if attendance_doc else str(date),
-                "subject": str(attendance_doc.subject) if attendance_doc else str(subject),
-                "department": str(attendance_doc.department) if attendance_doc else str(department),
-                "year": str(attendance_doc.year) if attendance_doc else str(year),
-                "division": str(attendance_doc.division) if attendance_doc else str(division),
-                "status": "present" if present else "absent",
-                "markedAt": marked_at
-            })
+                    attendance_list.append({
+                        "sessionId": str(doc.id),
+                        "studentId": sid,
+                        "studentName": student.student_name,
+                        "date": str(doc.date),
+                        "subject": str(doc.subject or subject or ""),
+                        "department": str(doc.department or department or ""),
+                        "year": str(doc.year or year or ""),
+                        "division": str(doc.division or division or ""),
+                        "status": "present" if present else "absent",
+                        "markedAt": marked_at
+                    })
 
-        # Also include any session-only students not in roster (fallback)
-        if attendance_doc:
-            for s in (attendance_doc.students or []):
-                sid = s.get("student_id")
-                if sid in seen_students:
+                # Include session-only students not in roster (fallback)
+                for s in (doc.students or []):
+                    sid = str(s.get("student_id") or "")
+                    if not sid or sid in seen_in_session:
+                        continue
+                    if student_id and sid not in [str(student_id), str(actual_student_id)]:
+                        continue
+                    seen_in_session.add(sid)
+                    attendance_list.append({
+                        "sessionId": str(doc.id),
+                        "studentId": sid,
+                        "studentName": s.get("student_name") or f"Student {sid}",
+                        "date": str(doc.date),
+                        "subject": str(doc.subject or subject or ""),
+                        "department": str(doc.department or department or ""),
+                        "year": str(doc.year or year or ""),
+                        "division": str(doc.division or division or ""),
+                        "status": "present" if s.get("present") else "absent",
+                        "markedAt": s.get("marked_at")
+                    })
+        elif roster:
+            for student in roster:
+                sid = str(student.student_id)
+                if not sid:
                     continue
-                if student_id and sid not in [student_id, actual_student_id]:
+                if student_id and sid not in [str(student_id), str(actual_student_id)]:
                     continue
-                seen_students.add(sid)
-                marked = s.get("marked_at")
-
                 attendance_list.append({
-                    "studentId": str(sid) if sid is not None else "",
-                    "studentName": s.get("student_name"),
-                    "date": str(attendance_doc.date),
-                    "subject": str(attendance_doc.subject),
-                    "department": str(attendance_doc.department),
-                    "year": str(attendance_doc.year),
-                    "division": str(attendance_doc.division),
-                    "status": "present" if s.get("present") else "absent",
-                    "markedAt": marked
+                    "sessionId": "",
+                    "studentId": sid,
+                    "studentName": student.student_name,
+                    "date": str(date or ""),
+                    "subject": str(subject or ""),
+                    "department": str(department or ""),
+                    "year": str(year or ""),
+                    "division": str(division or ""),
+                    "status": "absent",
+                    "markedAt": None
                 })
 
-        total_students = roster_query.count() if roster_query is not None else 0
+        total_students = roster_query.count() if roster_query is not None else len(attendance_list)
         present_count = sum(1 for r in attendance_list if r.get("status") == "present")
-        absent_count = max(total_students - present_count, 0)
-        attendance_rate = round((present_count / total_students * 100) if total_students > 0 else 0, 1)
+        absent_count = max(len(attendance_list) - present_count, 0)
+        attendance_rate = round((present_count / len(attendance_list) * 100) if attendance_list else 0, 1)
 
         return {
             "success": True,
@@ -245,30 +286,76 @@ async def export_attendance(
     division = request.query_params.get('division')
     subject = request.query_params.get('subject')
 
+    user_role = current_user.get("role")
+    teacher_dept = get_teacher_department(current_user, db) if user_role == "teacher" else None
+
+    # DBAC: Enforce department boundaries for teachers
+    if user_role == "teacher" and teacher_dept:
+        if department and department.strip().lower() != teacher_dept.strip().lower():
+            return JSONResponse(
+                status_code=403,
+                content={"success": False, "error": f"Unauthorized: You can only export attendance for your assigned department ({teacher_dept})."}
+            )
+        department = teacher_dept
+
     try:
         attendance_query = _apply_filters(db.query(AttendanceRecord), AttendanceRecord, date, department, year, division, subject)
-        attendance_doc = attendance_query.first()
-        present_students = set()
-
-        if attendance_doc:
-            for student in (attendance_doc.students or []):
-                present_students.add(student.get("student_id"))
+        attendance_docs = attendance_query.order_by(AttendanceRecord.created_at.asc()).all()
 
         student_query = _apply_filters(db.query(Student), Student, department=department, year=year, division=division)
         students = student_query.all()
         export_data = []
 
-        for student in students:
-            sid = student.student_id
-            name = student.student_name
-            status = "present" if sid in present_students else "absent"
-            export_data.append({
-                "studentId": str(sid) if sid is not None else "",
-                "name": name,
-                "subject": str(subject) if subject else "N/A",
-                "date": str(date) if date else "N/A",
-                "status": status
-            })
+        if attendance_docs:
+            for doc in attendance_docs:
+                session_map = {str(s.get("student_id")): s for s in (doc.students or []) if s.get("student_id")}
+                seen_students = set()
+                for student in students:
+                    sid = str(student.student_id)
+                    seen_students.add(sid)
+                    s_entry = session_map.get(sid)
+                    status = "present" if (s_entry and s_entry.get("present")) else "absent"
+                    export_data.append({
+                        "studentId": sid,
+                        "name": student.student_name,
+                        "department": str(doc.department or student.department or department or ""),
+                        "year": str(doc.year or student.year or year or ""),
+                        "division": str(doc.division or student.division or division or ""),
+                        "subject": str(doc.subject or subject or "N/A"),
+                        "date": str(doc.date or date or "N/A"),
+                        "status": status,
+                        "time": (s_entry.get("marked_at") if s_entry else None) or "—"
+                    })
+                # Fallback for students recorded in session but not in student roster
+                for s in (doc.students or []):
+                    sid = str(s.get("student_id") or "")
+                    if sid and sid not in seen_students:
+                        seen_students.add(sid)
+                        export_data.append({
+                            "studentId": sid,
+                            "name": s.get("student_name") or f"Student {sid}",
+                            "department": str(doc.department or department or ""),
+                            "year": str(doc.year or year or ""),
+                            "division": str(doc.division or division or ""),
+                            "subject": str(doc.subject or subject or "N/A"),
+                            "date": str(doc.date or date or "N/A"),
+                            "status": "present" if s.get("present") else "absent",
+                            "time": s.get("marked_at") or "—"
+                        })
+        elif students:
+            for student in students:
+                sid = str(student.student_id)
+                export_data.append({
+                    "studentId": sid,
+                    "name": student.student_name,
+                    "department": str(student.department or department or ""),
+                    "year": str(student.year or year or ""),
+                    "division": str(student.division or division or ""),
+                    "subject": str(subject or "N/A"),
+                    "date": str(date or "N/A"),
+                    "status": "absent",
+                    "time": "—"
+                })
 
         return {"success": True, "data": export_data}
 
@@ -297,6 +384,18 @@ async def get_defaulter_list(
     end_date = request.query_params.get('end_date')
     month = request.query_params.get('month')
     threshold_param = request.query_params.get('threshold')
+
+    user_role = current_user.get("role")
+    teacher_dept = get_teacher_department(current_user, db) if user_role == "teacher" else None
+
+    # DBAC: Enforce department boundaries for teachers
+    if user_role == "teacher" and teacher_dept:
+        if department and department.strip().lower() != teacher_dept.strip().lower():
+            return JSONResponse(
+                status_code=403,
+                content={"success": False, "error": f"Unauthorized: You can only generate defaulter lists for your assigned department ({teacher_dept})."}
+            )
+        department = teacher_dept
 
     try:
         threshold_val = float(threshold_param) if threshold_param else 75.0

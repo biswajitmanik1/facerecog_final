@@ -5,15 +5,17 @@ import { apiFetch } from '../../lib/api.js'
 
 export default function ViewAttendance() {
   const navigate = useNavigate()
+  const utype = localStorage.getItem('userType')
+  const teacherDept = utype === 'teacher' ? (localStorage.getItem('department') || '') : ''
+
   const [attendanceData, setAttendanceData] = useState([])
   const [loading, setLoading] = useState(false)
   const [selectedDate, setSelectedDate] = useState('')
-  const [filterDepartment, setFilterDepartment] = useState('')
+  const [filterDepartment, setFilterDepartment] = useState(teacherDept || '')
   const [filterYear, setFilterYear] = useState('')
   const [filterDivision, setFilterDivision] = useState('')
   const [filterSubject, setFilterSubject] = useState('')
   const [filterStudentId, setFilterStudentId] = useState(() => {
-    const utype = localStorage.getItem('userType')
     if (utype === 'student') {
       return localStorage.getItem('studentId') || localStorage.getItem('username') || ''
     }
@@ -23,11 +25,10 @@ export default function ViewAttendance() {
   const [searched, setSearched] = useState(false)
 
   const dashboardPath = useMemo(() => {
-    const utype = localStorage.getItem('userType')
     if (utype === 'admin') return '/admin/dashboard'
     if (utype === 'teacher') return '/teacher/dashboard'
     return '/dashboard'
-  }, [])
+  }, [utype])
 
   useEffect(() => {
     if (filterStudentId) {
@@ -36,7 +37,8 @@ export default function ViewAttendance() {
   }, [])
 
   const fetchAttendanceData = async () => {
-    if (!selectedDate && !filterDepartment && !filterStudentId) {
+    const activeDept = teacherDept || filterDepartment
+    if (!selectedDate && !activeDept && !filterStudentId) {
       alert('Please select a date, department, or student ID to filter.')
       return
     }
@@ -44,7 +46,7 @@ export default function ViewAttendance() {
     try {
       const params = new URLSearchParams()
       if (selectedDate) params.set('date', selectedDate)
-      if (filterDepartment) params.set('department', filterDepartment)
+      if (activeDept) params.set('department', activeDept)
       if (filterYear) params.set('year', filterYear)
       if (filterDivision) params.set('division', filterDivision)
       if (filterSubject) params.set('subject', filterSubject)
@@ -60,16 +62,23 @@ export default function ViewAttendance() {
       }
       if (data && data.success) {
         const mappedData = data.attendance.map((record, idx) => ({
-          _id: record.studentId || `row-${idx}`,
+          _id: record.sessionId ? `${record.sessionId}-${record.studentId || idx}` : (record.studentId || `row-${idx}`),
+          sessionId: record.sessionId || '',
           studentId: record.studentId || record.student_id || '-',
           studentName: record.studentName || record.student_name || '-',
+          subject: record.subject || filterSubject || '—',
+          department: record.department || activeDept || '—',
+          year: record.year || filterYear || '—',
+          division: record.division || filterDivision || '—',
           date: record.date || data.date || selectedDate,
-          time: record.markedAt || record.time || '-',
+          time: record.markedAt || record.time || '—',
           status: record.status || 'present',
-          confidence: record.confidence || 0,
+          confidence: record.confidence || (record.status === 'present' ? 95 : 0),
         }))
         setAttendanceData(mappedData)
         setStats(data.stats || { totalStudents: 0, presentToday: 0, absentToday: 0, attendanceRate: 0 })
+      } else if (data && data.error) {
+        alert(data.error)
       }
       setSearched(true)
     } catch (error) {
@@ -81,9 +90,10 @@ export default function ViewAttendance() {
 
   const exportExcel = async () => {
     try {
+      const activeDept = teacherDept || filterDepartment
       const params = new URLSearchParams()
       if (selectedDate) params.set('date', selectedDate)
-      if (filterDepartment) params.set('department', filterDepartment)
+      if (activeDept) params.set('department', activeDept)
       if (filterYear) params.set('year', filterYear)
       if (filterDivision) params.set('division', filterDivision)
       if (filterSubject) params.set('subject', filterSubject)
@@ -101,7 +111,9 @@ export default function ViewAttendance() {
         const worksheet = XLSX.utils.json_to_sheet(data.data)
         const workbook = XLSX.utils.book_new()
         XLSX.utils.book_append_sheet(workbook, worksheet, 'Attendance')
-        XLSX.writeFile(workbook, `attendance_${selectedDate || 'export'}.xlsx`)
+        XLSX.writeFile(workbook, `attendance_${activeDept || 'dept'}_${selectedDate || 'export'}.xlsx`)
+      } else if (data && data.error) {
+        alert(data.error)
       }
     } catch (error) {
       console.error('Error exporting excel:', error)
@@ -158,13 +170,29 @@ export default function ViewAttendance() {
             </div>
 
             <div>
-              <label className={labelCls}>Department</label>
-              <select value={filterDepartment} onChange={e => setFilterDepartment(e.target.value)} className={selectCls}>
-                <option value="">All Departments</option>
-                {['Computer Science', 'Information Technology', 'Electronics', 'Mechanical', 'Civil'].map(d => (
-                  <option key={d} value={d}>{d}</option>
-                ))}
-              </select>
+              <div className="flex items-center justify-between mb-2">
+                <label className={labelCls}>Department</label>
+                {teacherDept && (
+                  <span className="text-[10px] bg-blue-100 text-blue-800 font-bold px-1.5 py-0.5 rounded uppercase tracking-wider">
+                    Assigned
+                  </span>
+                )}
+              </div>
+              {teacherDept ? (
+                <div className="flex items-center justify-between bg-blue-50/80 border border-blue-300 rounded-xl px-4 py-3 text-blue-950 text-base font-bold shadow-xs transition-all duration-200">
+                  <span className="truncate font-bold">{teacherDept}</span>
+                  <span className="text-xs bg-blue-600 text-white font-extrabold px-2 py-0.5 rounded-lg uppercase tracking-wider ml-1.5 shrink-0 shadow-2xs">
+                    Locked
+                  </span>
+                </div>
+              ) : (
+                <select value={filterDepartment} onChange={e => setFilterDepartment(e.target.value)} className={selectCls}>
+                  <option value="">All Departments</option>
+                  {['Computer Science', 'Information Technology', 'Electronics', 'Mechanical', 'Civil'].map(d => (
+                    <option key={d} value={d}>{d}</option>
+                  ))}
+                </select>
+              )}
             </div>
 
             <div>
@@ -226,8 +254,9 @@ export default function ViewAttendance() {
 
             <button
               onClick={() => {
+                const activeDept = teacherDept || filterDepartment
                 const params = new URLSearchParams()
-                if (filterDepartment) params.set('department', filterDepartment)
+                if (activeDept) params.set('department', activeDept)
                 if (filterYear) params.set('year', filterYear)
                 if (filterDivision) params.set('division', filterDivision)
                 if (filterSubject) params.set('subject', filterSubject)
@@ -323,6 +352,7 @@ export default function ViewAttendance() {
                   <tr>
                     <th className="px-6 py-4">Student ID</th>
                     <th className="px-6 py-4">Full Name</th>
+                    <th className="px-6 py-4">Subject</th>
                     <th className="px-6 py-4">Date</th>
                     <th className="px-6 py-4">Time</th>
                     <th className="px-6 py-4">Status</th>
@@ -334,6 +364,7 @@ export default function ViewAttendance() {
                     <tr key={record._id} className="hover:bg-blue-50/40 transition-colors">
                       <td className="px-6 py-4 font-semibold text-blue-600">{record.studentId}</td>
                       <td className="px-6 py-4 font-medium text-gray-800">{record.studentName}</td>
+                      <td className="px-6 py-4 font-semibold text-gray-700">{record.subject}</td>
                       <td className="px-6 py-4 text-gray-600">{new Date(record.date).toLocaleDateString()}</td>
                       <td className="px-6 py-4 text-gray-600 font-mono text-sm">{record.time}</td>
                       <td className="px-6 py-4">

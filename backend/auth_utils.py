@@ -5,6 +5,8 @@ from fastapi import Request, Security, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from dotenv import load_dotenv
 
+env_path = os.path.join(os.path.dirname(__file__), ".env")
+load_dotenv(env_path)
 load_dotenv()
 
 SECRET_KEY = os.getenv("SECRET_KEY")

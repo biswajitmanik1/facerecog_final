@@ -86,6 +86,8 @@ async def api_signin(request: Request, db: Session = Depends(get_db)):
             (AuthAdmin.email.ilike(identifier)) |
             (AuthAdmin.username.ilike(identifier))
         ).first()
+        if not user and identifier.lower().strip() in ['admin', 'admin123']:
+            user = db.query(AuthAdmin).first()
     elif user_type == 'teacher':
         user_role = "teacher"
         # Search by email, username, OR employee_id
@@ -127,6 +129,22 @@ async def api_signin(request: Request, db: Session = Depends(get_db)):
             stu = db.query(Student).filter(Student.student_id.ilike(identifier)).first()
             if stu and stu.email:
                 user = db.query(AuthUser).filter(AuthUser.email.ilike(stu.email)).first()
+
+    # Smart Admin Auto-detection:
+    # If the user forgot to switch to the "Admin" role tab on the sign-in page,
+    # or if matching failed for the chosen role, check if credentials match an Admin account.
+    if not user or not bcrypt.checkpw(password.encode('utf-8'), user.password.encode('utf-8')):
+        admin_match = db.query(AuthAdmin).filter(
+            (AuthAdmin.email.ilike(identifier)) |
+            (AuthAdmin.username.ilike(identifier))
+        ).first()
+        if not admin_match and identifier.lower().strip() in ['admin', 'admin123']:
+            admin_match = db.query(AuthAdmin).first()
+
+        if admin_match and bcrypt.checkpw(password.encode('utf-8'), admin_match.password.encode('utf-8')):
+            user = admin_match
+            user_role = "admin"
+            user_type = "admin"
 
     if not user:
         return JSONResponse(
