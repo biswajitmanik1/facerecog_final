@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Camera, User, Lock, Shield, GraduationCap, BookOpen } from 'lucide-react'
+import { Camera, User, Lock, Shield, GraduationCap, BookOpen, Clock, AlertCircle } from 'lucide-react'
 import { apiFetch } from '../lib/api.js'
 
 const ROLES = ['student', 'teacher', 'admin']
@@ -11,6 +11,7 @@ export default function SignInPage() {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [status, setStatus] = useState('')
+  const [statusType, setStatusType] = useState('error')
   const [loading, setLoading] = useState(false)
 
   const roleIcon = {
@@ -24,12 +25,16 @@ export default function SignInPage() {
     setLoading(true)
     setStatus('')
     try {
+      const trimmedInput = username.trim()
       const res = await apiFetch('/api/signin', {
         method: 'POST',
         body: JSON.stringify({
-          email: username.trim(),
-          username: username.trim(),
-          employeeId: username.trim(),
+          email: trimmedInput,
+          username: trimmedInput,
+          employeeId: trimmedInput,
+          phoneNumber: trimmedInput,
+          phone: trimmedInput,
+          identifier: trimmedInput,
           password,
           userType: role,
           role
@@ -47,18 +52,26 @@ export default function SignInPage() {
         localStorage.setItem('userId', user._id || '')
         localStorage.setItem('userEmail', user.email || username)
         localStorage.setItem('hasStudentRecord', user.hasStudentRecord ? 'true' : 'false')
-        if (user.studentId) localStorage.setItem('studentId', user.studentId)
+        if (user.studentId || (user.userType === 'student' && user.username)) {
+          localStorage.setItem('studentId', user.studentId || user.username)
+        }
         if (user.employeeId) localStorage.setItem('employeeId', user.employeeId)
         if (user.department) localStorage.setItem('department', user.department)
+        if (user.phoneNumber) localStorage.setItem('phoneNumber', user.phoneNumber)
+        if (user.studentName) localStorage.setItem('studentName', user.studentName)
+        if (user.year) localStorage.setItem('year', user.year)
+        if (user.division) localStorage.setItem('division', user.division)
 
         const resolvedType = data.userType || user.userType || role
         if (resolvedType === 'admin') navigate('/admin/dashboard')
         else if (resolvedType === 'teacher') navigate('/teacher/dashboard')
         else navigate('/dashboard')
       } else {
+        setStatusType(data.status || 'error')
         setStatus(data.error || 'Sign in failed')
       }
     } catch {
+      setStatusType('error')
       setStatus('Error connecting to server')
     } finally {
       setLoading(false)
@@ -115,10 +128,10 @@ export default function SignInPage() {
                 type="text"
                 placeholder={
                   role === 'teacher'
-                    ? 'Email, Username or Employee ID'
+                    ? 'Email, Phone, Username or Employee ID'
                     : role === 'student'
-                    ? 'Email or Username'
-                    : 'Admin Email or Username'
+                    ? 'Email, Phone, Username or Student ID'
+                    : 'Admin Email, Phone or Username'
                 }
                 value={username}
                 onChange={e => setUsername(e.target.value)}
@@ -139,9 +152,27 @@ export default function SignInPage() {
             </div>
 
             {status && (
-              <div className="p-3 bg-red-900/30 border border-red-700 text-red-300 rounded-2xl text-sm text-center">
-                {status}
-              </div>
+              statusType === 'pending_approval' ? (
+                <div className="p-4 bg-amber-950/40 border border-amber-500/50 text-amber-200 rounded-2xl text-sm flex items-start gap-3 shadow-lg">
+                  <Clock className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-semibold text-amber-300">Account Pending Admin Approval</p>
+                    <p className="text-xs text-amber-200/80 mt-1 leading-relaxed">{status}</p>
+                  </div>
+                </div>
+              ) : statusType === 'rejected' ? (
+                <div className="p-4 bg-rose-950/40 border border-rose-500/50 text-rose-200 rounded-2xl text-sm flex items-start gap-3 shadow-lg">
+                  <AlertCircle className="w-5 h-5 text-rose-400 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-semibold text-rose-300">Registration Rejected</p>
+                    <p className="text-xs text-rose-200/80 mt-1 leading-relaxed">{status}</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-3 bg-red-900/30 border border-red-700 text-red-300 rounded-2xl text-sm text-center">
+                  {status}
+                </div>
+              )
             )}
 
             <button

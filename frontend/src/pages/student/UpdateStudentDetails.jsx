@@ -95,12 +95,22 @@ export default function UpdateStudentDetails() {
   const clearFilters = () => setFilters({ department: teacherDept || '', year: '', division: '', studentId: '', search: '' })
   const handleStudentSelect = student => { setSelectedStudent({ ...student }); setStatus({ msg: '', type: '' }) }
   const handleInputChange = e => {
-    if (selectedStudent) setSelectedStudent(prev => ({ ...prev, [e.target.name]: e.target.value }))
+    const { name, value } = e.target
+    if (name === 'phoneNumber') {
+      const digits = value.replace(/\D/g, '').slice(0, 10)
+      if (selectedStudent) setSelectedStudent(prev => ({ ...prev, [name]: digits }))
+      return
+    }
+    if (selectedStudent) setSelectedStudent(prev => ({ ...prev, [name]: value }))
   }
 
   const handleUpdate = async e => {
     e.preventDefault()
     if (!selectedStudent) return
+    if (selectedStudent.phoneNumber && !/^[0-9]{10}$/.test(selectedStudent.phoneNumber.trim())) {
+      setStatus({ msg: 'Please enter a valid 10-digit phone number', type: 'error' })
+      return
+    }
     setUpdating(true)
     setStatus({ msg: 'Saving changes...', type: 'info' })
     try {
@@ -377,8 +387,8 @@ export default function UpdateStudentDetails() {
                         <label className={labelCls}>Phone Number</label>
                         <div className="relative">
                           <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                          <input name="phoneNumber" type="tel" value={selectedStudent.phoneNumber || ''} onChange={handleInputChange}
-                            className={inputCls + ' pl-10'} placeholder="Phone number" />
+                          <input name="phoneNumber" type="tel" inputMode="numeric" maxLength={10} value={selectedStudent.phoneNumber || ''} onChange={handleInputChange}
+                            className={inputCls + ' pl-10'} placeholder="10-digit phone number" />
                         </div>
                       </div>
                     </div>

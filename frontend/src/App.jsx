@@ -9,6 +9,7 @@ import DashboardPage from './pages/DashboardPage.jsx'
 import AdminDashboard from './pages/admin/AdminDashboard.jsx'
 import InstitutionReports from './pages/admin/InstitutionReports.jsx'
 import ManageTeachers from './pages/admin/ManageTeachers.jsx'
+import StudentApprovals from './pages/admin/StudentApprovals.jsx'
 
 import StudentRegistrationForm from './pages/student/StudentRegistrationForm.jsx'
 import UpdateStudentDetails from './pages/student/UpdateStudentDetails.jsx'
@@ -34,6 +35,7 @@ export default function App() {
             <Route path="/admin/dashboard" element={<AdminDashboard />} />
             <Route path="/admin/reports" element={<InstitutionReports />} />
             <Route path="/admin/teachers" element={<ManageTeachers />} />
+            <Route path="/admin/approvals" element={<StudentApprovals />} />
 
             <Route path="/student/registrationform" element={<StudentRegistrationForm />} />
             <Route path="/student/updatedetails" element={<UpdateStudentDetails />} />

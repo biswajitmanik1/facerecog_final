@@ -137,12 +137,25 @@ export default function TeacherUpdateDetails() {
   }
 
   const handleInputChange = (e) => {
-    if (student) setStudent(prev => ({ ...prev, [e.target.name]: e.target.value }))
+    const { name, value } = e.target
+    if (name === 'phoneNumber') {
+      const digits = value.replace(/\D/g, '').slice(0, 10)
+      if (student) setStudent(prev => ({ ...prev, [name]: digits }))
+      return
+    }
+    if (student) setStudent(prev => ({ ...prev, [name]: value }))
   }
 
   const handleUpdate = async (e) => {
     e.preventDefault()
     if (!student) return
+    if (student.phoneNumber) {
+      const cleanPhone = student.phoneNumber.replace(/\D/g, '')
+      if (!/^[0-9]{10}$/.test(cleanPhone)) {
+        setStatus({ msg: 'Please enter a valid 10-digit phone number', type: 'error' })
+        return
+      }
+    }
     setUpdating(true)
     setStatus({ msg: 'Saving changes...', type: 'info' })
     try {
@@ -156,7 +169,7 @@ export default function TeacherUpdateDetails() {
           division: student.division,
           semester: student.semester,
           email: student.email,
-          phoneNumber: student.phoneNumber
+          phoneNumber: student.phoneNumber ? student.phoneNumber.replace(/\D/g, '').slice(0, 10) : ''
         }),
       })
       const data = await res.json()
@@ -494,10 +507,12 @@ export default function TeacherUpdateDetails() {
                       <input
                         name="phoneNumber"
                         type="tel"
+                        inputMode="numeric"
+                        maxLength={10}
                         value={student.phoneNumber || ''}
                         onChange={handleInputChange}
                         className={inputCls}
-                        placeholder="e.g. 9876543210"
+                        placeholder="e.g. 9876543210 (10 digits)"
                       />
                     </div>
                   </div>

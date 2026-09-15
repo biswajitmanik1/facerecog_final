@@ -16,16 +16,31 @@ from ui_shell import add_button, centre, dark_titlebar, dialog_scale, enable_dpi
 from paths import icon_path
 
 
-def _authenticate(email, password, role):
+def _authenticate(identifier, password, role):
     """Returns (user_dict, None) on success or (None, error_message)."""
+    import re
+    from sqlalchemy import or_
     from db_shared import AuthAdmin, AuthTeacher, SessionLocal
 
     model = AuthAdmin if role == "admin" else AuthTeacher
     session = SessionLocal()
     try:
-        user = session.query(model).filter_by(email=email).first()
+        clean_digits = re.sub(r'\D', '', identifier)
+        has_phone = len(clean_digits) >= 7
+
+        conds = [
+            model.email.ilike(identifier),
+            model.username.ilike(identifier),
+            model.phone_number == identifier
+        ]
+        if hasattr(model, 'employee_id'):
+            conds.append(model.employee_id.ilike(identifier))
+        if has_phone:
+            conds.append(model.phone_number.ilike(f"%{clean_digits}%"))
+
+        user = session.query(model).filter(or_(*conds)).first()
         if not user:
-            return None, f"No {role} account found with this email"
+            return None, f"No {role} account found matching '{identifier}'"
         if not bcrypt.checkpw(password.encode("utf-8"), user.password.encode("utf-8")):
             return None, "Invalid password"
         if user.status == "inactive":
@@ -77,7 +92,7 @@ def show_login():
     d.text((s(240), s(146)), "Sign In", font=fnt(23, "bold"), fill=ui.NAVY, anchor="mm")
     d.text((s(240), s(174)), "Smart College Attendance System", font=fnt(12), fill=ui.GREY, anchor="mm")
 
-    for label, y in (("Email", 292), ("Password", 372)):
+    for label, y in (("Email or Phone", 292), ("Password", 372)):
         d.text((s(70), s(y)), label, font=fnt(12, "semibold"), fill=ui.NAVY, anchor="lm")
         d.rounded_rectangle(
             [s(70), s(y + 16), s(410), s(y + 60)], radius=s(10), fill="#f4f8ff", outline=ui.BORDER, width=1

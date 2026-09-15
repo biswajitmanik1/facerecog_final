@@ -1,20 +1,29 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import MultiCameraCapture from '../../components/MultiCameraCapture.jsx'
-import { ArrowLeft, User, Mail, Phone, Building, Calendar, Users, BookOpen, Camera, Home, IdCard, GraduationCap } from 'lucide-react'
+import { ArrowLeft, User, Mail, Phone, Building, Calendar, Users, BookOpen, Camera, Home, IdCard, GraduationCap, CheckCircle2 } from 'lucide-react'
 import { apiFetch } from '../../lib/api.js'
 
-const departments = ['Computer Science', 'Information Technology', 'Electronics', 'Mechanical', 'Civil', 'Electrical', 'Chemical', 'Biotechnology']
+const departments = ['Computer Science', 'Information Technology', 'Electronics', 'Mechanical', 'Civil', 'Electrical', 'Chemical', 'Biotechnology', 'Computer Applications', 'Data Science', 'AI & ML']
 const years = ['1st Year', '2nd Year', '3rd Year', '4th Year']
 const divisions = ['A', 'B', 'C', 'D']
 const semesters = ['1', '2', '3', '4', '5', '6', '7', '8']
 
-function InputField({ name, value, onChange, icon: Icon, label, placeholder, type = 'text', disabled = false }) {
+function InputField({ name, value, onChange, icon: Icon, label, placeholder, type = 'text', disabled = false, badge = null, maxLength, inputMode }) {
   return (
     <div className="group">
-      <label className="block text-slate-700 text-sm font-semibold mb-2 transition-all duration-300 group-focus-within:text-blue-600">{label}</label>
+      <div className="flex items-center justify-between mb-2">
+        <label className="block text-slate-700 text-sm font-semibold transition-all duration-300 group-focus-within:text-blue-600">{label}</label>
+        {badge && (
+          <span className="text-[11px] px-2 py-0.5 rounded-full font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1 shadow-sm">
+            {badge}
+          </span>
+        )}
+      </div>
       <div className="relative">
         <input name={name} value={value} onChange={onChange} type={type} placeholder={placeholder} disabled={disabled}
+          maxLength={maxLength}
+          inputMode={inputMode}
           title={disabled ? "This is your sign-in email and can't be changed here" : undefined}
           className={`w-full px-4 py-3 pl-12 rounded-lg border-2 border-slate-200 text-slate-800 placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all duration-300 font-medium hover:border-slate-300 shadow-sm hover:shadow-md ${
             disabled ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : 'bg-white'
@@ -27,14 +36,21 @@ function InputField({ name, value, onChange, icon: Icon, label, placeholder, typ
   )
 }
 
-function SelectField({ name, value, onChange, icon: Icon, label, options, placeholder, prefix, disabled = false }) {
+function SelectField({ name, value, onChange, icon: Icon, label, options, placeholder, prefix, disabled = false, badge = null }) {
   return (
     <div className="group">
       <div className="flex items-center justify-between mb-2">
         <label className="block text-slate-700 text-sm font-semibold transition-all duration-300 group-focus-within:text-emerald-600">{label}</label>
-        {disabled && (
-          <span className="text-xs text-blue-600 font-medium">🔒 Locked</span>
-        )}
+        <div className="flex items-center gap-1.5">
+          {badge && (
+            <span className="text-[11px] px-2 py-0.5 rounded-full font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1 shadow-sm">
+              {badge}
+            </span>
+          )}
+          {disabled && (
+            <span className="text-xs text-blue-600 font-medium">🔒 Locked</span>
+          )}
+        </div>
       </div>
       <div className="relative">
         <select name={name} value={value} onChange={onChange} disabled={disabled}
@@ -64,10 +80,39 @@ function SelectField({ name, value, onChange, icon: Icon, label, options, placeh
 export default function StudentRegistrationForm() {
   const navigate = useNavigate()
   const [formData, setFormData] = useState({ studentName: '', studentId: '', department: '', year: '', division: '', semester: '', email: '', phoneNumber: '' })
+  const [autoFetchedFields, setAutoFetchedFields] = useState({
+    phoneNumber: false,
+    studentId: false,
+    studentName: false,
+    department: false,
+    year: false,
+    division: false,
+  })
   const [status, setStatus] = useState('')
   const [step, setStep] = useState(1)
   const [isAuthed, setIsAuthed] = useState(null)
   const [userType, setUserType] = useState('student')
+
+  const departmentOptions = useMemo(() => {
+    if (formData.department && !departments.includes(formData.department)) {
+      return [formData.department, ...departments]
+    }
+    return departments
+  }, [formData.department])
+
+  const yearOptions = useMemo(() => {
+    if (formData.year && !years.includes(formData.year)) {
+      return [formData.year, ...years]
+    }
+    return years
+  }, [formData.year])
+
+  const divisionOptions = useMemo(() => {
+    if (formData.division && !divisions.includes(formData.division)) {
+      return [formData.division, ...divisions]
+    }
+    return divisions
+  }, [formData.division])
 
   const dashboardPath = useMemo(() => {
     if (userType === 'admin') return '/admin/dashboard'
@@ -82,9 +127,73 @@ export default function StudentRegistrationForm() {
       setUserType(utype)
       if (!loggedIn) { setIsAuthed(false); navigate('/signin'); return }
       setIsAuthed(true)
+
       if (utype === 'student') {
         const loginEmail = localStorage.getItem('userEmail') || ''
-        setFormData(prev => ({ ...prev, email: loginEmail }))
+        const loginPhone = localStorage.getItem('phoneNumber') || ''
+        const loginId = localStorage.getItem('studentId') || localStorage.getItem('username') || ''
+        const loginName = localStorage.getItem('studentName') || ''
+        const loginDept = localStorage.getItem('department') || ''
+        const loginYear = localStorage.getItem('year') || ''
+        const loginDiv = localStorage.getItem('division') || ''
+
+        const cleanPhone = (loginPhone || '').replace(/\D/g, '').slice(-10)
+
+        setFormData(prev => ({
+          ...prev,
+          email: loginEmail || prev.email,
+          phoneNumber: cleanPhone || prev.phoneNumber,
+          studentId: loginId || prev.studentId,
+          studentName: loginName || prev.studentName,
+          department: loginDept || prev.department,
+          year: loginYear || prev.year,
+          division: loginDiv || prev.division,
+        }))
+
+        setAutoFetchedFields({
+          phoneNumber: Boolean(cleanPhone),
+          studentId: Boolean(loginId),
+          studentName: Boolean(loginName),
+          department: Boolean(loginDept),
+          year: Boolean(loginYear),
+          division: Boolean(loginDiv),
+        })
+
+        // Concurrently fetch fresh verified profile & roster prefill from server
+        apiFetch('/api/student/registration-prefill')
+          .then(res => res.json())
+          .then(data => {
+            if (data.success && data.prefill) {
+              const p = data.prefill
+              const sPhone = (p.phoneNumber || '').replace(/\D/g, '').slice(-10)
+              setFormData(prev => ({
+                ...prev,
+                email: p.email || prev.email,
+                phoneNumber: sPhone || prev.phoneNumber,
+                studentId: p.studentId || prev.studentId,
+                studentName: p.studentName || prev.studentName,
+                department: p.department || prev.department,
+                year: p.year || prev.year,
+                division: p.division || prev.division,
+              }))
+              setAutoFetchedFields({
+                phoneNumber: Boolean(sPhone),
+                studentId: Boolean(p.studentId),
+                studentName: Boolean(p.studentName),
+                department: Boolean(p.department),
+                year: Boolean(p.year),
+                division: Boolean(p.division),
+              })
+              if (sPhone) localStorage.setItem('phoneNumber', sPhone)
+              if (p.studentId) localStorage.setItem('studentId', p.studentId)
+              if (p.studentName) localStorage.setItem('studentName', p.studentName)
+              if (p.department) localStorage.setItem('department', p.department)
+              if (p.year) localStorage.setItem('year', p.year)
+              if (p.division) localStorage.setItem('division', p.division)
+            }
+          })
+          .catch(() => {})
+
       } else if (utype === 'teacher') {
         const teacherDept = localStorage.getItem('department') || ''
         if (teacherDept) {
@@ -95,7 +204,13 @@ export default function StudentRegistrationForm() {
   }, [navigate])
 
   const handleInputChange = (e) => {
-    setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }))
+    const { name, value } = e.target
+    if (name === 'phoneNumber') {
+      const digits = value.replace(/\D/g, '').slice(0, 10)
+      setFormData(prev => ({ ...prev, [name]: digits }))
+      return
+    }
+    setFormData(prev => ({ ...prev, [name]: value }))
   }
 
   const validateForm = () => {
@@ -175,15 +290,69 @@ export default function StudentRegistrationForm() {
                 <h2 className="text-3xl font-bold text-slate-900 mb-2">Register New Student</h2>
                 <p className="text-slate-600 text-base">Fill in all required student details</p>
               </div>
+
+              {autoFetchedFields.phoneNumber && (
+                <div className="mb-6 p-4 bg-emerald-50/80 border-2 border-emerald-200 rounded-2xl flex items-center gap-3.5 text-emerald-900 shadow-sm animate-fadeIn">
+                  <div className="p-2 bg-emerald-500 text-white rounded-xl shadow">
+                    <CheckCircle2 className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-emerald-950">
+                      Verified Information Auto-Fetched
+                    </p>
+                    <p className="text-xs text-emerald-800 font-medium mt-0.5">
+                      Your phone number (<b>{formData.phoneNumber}</b>), Roll Number, and college master roster details have been pre-filled automatically. You can review or adjust them before proceeding.
+                    </p>
+                  </div>
+                </div>
+              )}
+
               <form onSubmit={handleFormSubmit}>
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-6 border-2 border-blue-200 shadow-lg">
                     <h3 className="text-xl font-bold text-slate-900 mb-5">Personal Details</h3>
                     <div className="space-y-4">
-                      <InputField name="studentName" value={formData.studentName} onChange={handleInputChange} icon={User} label="Full Name *" placeholder="Enter student's full name" />
-                      <InputField name="studentId" value={formData.studentId} onChange={handleInputChange} icon={IdCard} label="Student ID *" placeholder="Enter unique student ID" />
-                      <InputField name="email" value={formData.email} onChange={handleInputChange} icon={Mail} label="Email Address *" placeholder="Enter student's email" type="email" disabled={userType === 'student'} />
-                      <InputField name="phoneNumber" value={formData.phoneNumber} onChange={handleInputChange} icon={Phone} label="Phone Number *" placeholder="Enter 10-digit phone number" type="tel" />
+                      <InputField
+                        name="studentName"
+                        value={formData.studentName}
+                        onChange={handleInputChange}
+                        icon={User}
+                        label="Full Name *"
+                        placeholder="Enter student's full name"
+                        badge={autoFetchedFields.studentName ? "✓ Auto-fetched" : null}
+                      />
+                      <InputField
+                        name="studentId"
+                        value={formData.studentId}
+                        onChange={handleInputChange}
+                        icon={IdCard}
+                        label="Student ID *"
+                        placeholder="Enter unique student ID"
+                        badge={autoFetchedFields.studentId ? "✓ Auto-fetched" : null}
+                      />
+                      <InputField
+                        name="email"
+                        value={formData.email}
+                        onChange={handleInputChange}
+                        icon={Mail}
+                        label="Email Address *"
+                        placeholder="Enter student's email"
+                        type="email"
+                        disabled={userType === 'student'}
+                        badge={userType === 'student' ? "Sign-in email" : null}
+                      />
+                      <InputField
+                        name="phoneNumber"
+                        value={formData.phoneNumber}
+                        onChange={handleInputChange}
+                        icon={Phone}
+                        label="Phone Number *"
+                        placeholder="Enter 10-digit phone number"
+                        type="tel"
+                        maxLength={10}
+                        inputMode="numeric"
+                        badge={autoFetchedFields.phoneNumber ? "✓ Auto-fetched" : null}
+                      />
                     </div>
                   </div>
                   <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-xl p-6 border-2 border-emerald-200 shadow-lg">
@@ -195,13 +364,42 @@ export default function StudentRegistrationForm() {
                         onChange={handleInputChange}
                         icon={Building}
                         label="Department *"
-                        options={departments}
+                        options={departmentOptions}
                         placeholder="Select Department"
                         disabled={userType === 'teacher' && !!localStorage.getItem('department')}
+                        badge={autoFetchedFields.department ? "✓ Master Roster" : null}
                       />
-                      <SelectField name="year" value={formData.year} onChange={handleInputChange} icon={Calendar} label="Year *" options={years} placeholder="Select Academic Year" />
-                      <SelectField name="division" value={formData.division} onChange={handleInputChange} icon={Users} label="Division *" options={divisions} placeholder="Select Division" prefix="Division " />
-                      <SelectField name="semester" value={formData.semester} onChange={handleInputChange} icon={BookOpen} label="Semester *" options={semesters} placeholder="Select Semester" prefix="Semester " />
+                      <SelectField
+                        name="year"
+                        value={formData.year}
+                        onChange={handleInputChange}
+                        icon={Calendar}
+                        label="Year *"
+                        options={yearOptions}
+                        placeholder="Select Academic Year"
+                        badge={autoFetchedFields.year ? "✓ Master Roster" : null}
+                      />
+                      <SelectField
+                        name="division"
+                        value={formData.division}
+                        onChange={handleInputChange}
+                        icon={Users}
+                        label="Division *"
+                        options={divisionOptions}
+                        placeholder="Select Division"
+                        prefix="Division "
+                        badge={autoFetchedFields.division ? "✓ Master Roster" : null}
+                      />
+                      <SelectField
+                        name="semester"
+                        value={formData.semester}
+                        onChange={handleInputChange}
+                        icon={BookOpen}
+                        label="Semester *"
+                        options={semesters}
+                        placeholder="Select Semester"
+                        prefix="Semester "
+                      />
                     </div>
                   </div>
                 </div>

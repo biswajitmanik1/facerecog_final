@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Camera, User, Lock, Mail, Building, IdCard } from 'lucide-react'
+import { Camera, User, Lock, Mail, Building, IdCard, Phone } from 'lucide-react'
 import { apiFetch } from '../lib/api.js'
 
 export default function SignUpPage() {
   const navigate = useNavigate()
   const [role, setRole] = useState('student')
   const [form, setForm] = useState({
-    username: '', email: '', password: '', employeeId: '', department: ''
+    username: '', email: '', password: '', phoneNumber: '', employeeId: '', department: ''
   })
   const [status, setStatus] = useState('')
   const [loading, setLoading] = useState(false)
@@ -23,17 +23,31 @@ export default function SignUpPage() {
   ]
 
   const handleChange = (e) => {
-    setForm(prev => ({ ...prev, [e.target.name]: e.target.value }))
+    const { name, value } = e.target
+    if (name === 'phoneNumber') {
+      const digits = value.replace(/\D/g, '').slice(0, 10)
+      setForm(prev => ({ ...prev, [name]: digits }))
+      return
+    }
+    setForm(prev => ({ ...prev, [name]: value }))
   }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setLoading(true)
     setStatus('')
+
+    const cleanPhone = (form.phoneNumber || '').replace(/\D/g, '')
+    if (!/^[0-9]{10}$/.test(cleanPhone)) {
+      setStatus('Please enter a valid 10-digit phone number')
+      setLoading(false)
+      return
+    }
+
     try {
       const res = await apiFetch('/api/signup', {
         method: 'POST',
-        body: JSON.stringify({ ...form, role, userType: role }),
+        body: JSON.stringify({ ...form, phoneNumber: cleanPhone, role, userType: role }),
       })
       const data = await res.json()
       if (data.success) {
@@ -99,6 +113,20 @@ export default function SignUpPage() {
               <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input name="email" type="email" placeholder="Email" required value={form.email} onChange={handleChange}
                 className="w-full bg-gray-900/50 border border-gray-600 hover:border-purple-400 hover:bg-gray-800 hover:shadow-lg hover:shadow-purple-500/20 text-white placeholder-gray-500 rounded-2xl pl-11 pr-4 py-3 focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 transition-all" />
+            </div>
+            <div className="relative">
+              <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <input
+                name="phoneNumber"
+                type="tel"
+                inputMode="numeric"
+                maxLength={10}
+                placeholder="Phone Number (10 digits)"
+                required
+                value={form.phoneNumber}
+                onChange={handleChange}
+                className="w-full bg-gray-900/50 border border-gray-600 hover:border-purple-400 hover:bg-gray-800 hover:shadow-lg hover:shadow-purple-500/20 text-white placeholder-gray-500 rounded-2xl pl-11 pr-4 py-3 focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 transition-all"
+              />
             </div>
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />

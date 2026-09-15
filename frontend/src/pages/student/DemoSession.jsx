@@ -101,7 +101,7 @@ export default function DemoSession() {
               <div className="relative rounded-xl overflow-hidden bg-slate-100 border-2 border-slate-200">
                 <CameraCapture
                   isLiveMode={isLiveActive}
-                  captureIntervalMs={1000}
+                  captureIntervalMs={700}
                   onCapture={handleRecognize}
                   facesData={lastResult && lastResult.box ? [{ ...lastResult, box: lastResult.box }] : []}
                 />

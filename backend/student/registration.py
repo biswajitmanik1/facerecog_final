@@ -1,4 +1,5 @@
 import time
+import re
 import base64
 import numpy as np
 from PIL import Image
@@ -21,19 +22,24 @@ detector = MTCNN()
 logger = logging.getLogger(__name__)
 
 
-def read_image_from_bytes(b):
+def read_image_from_bytes(b, max_dim=640):
     img = Image.open(io.BytesIO(b)).convert('RGB')
+    if max(img.size) > max_dim:
+        scale = max_dim / float(max(img.size))
+        new_size = (int(img.width * scale), int(img.height * scale))
+        img = img.resize(new_size, Image.Resampling.BILINEAR)
     return np.array(img)
 
 
-def detect_faces_rgb(rgb_image):
-    detections = detector.detect_faces(rgb_image)
+def detect_faces_rgb(rgb_image, det=None):
+    active_det = det or detector
+    detections = active_det.detect_faces(rgb_image)
     faces = []
     for d in detections:
-        if d['confidence'] > 0.9:
+        if d['confidence'] > 0.85:
             x, y, w, h = d['box']
             x, y = max(0, x), max(0, y)
-            if w > 50 and h > 50:
+            if w > 40 and h > 40:
                 face_rgb = rgb_image[y:y+h, x:x+w]
                 faces.append({'box': (x, y, w, h), 'face': face_rgb, 'confidence': d['confidence']})
     return faces
@@ -43,10 +49,15 @@ def extract_embedding(face_rgb):
     try:
         face_pil = Image.fromarray(face_rgb.astype('uint8')).resize((160, 160))
         face_array = np.array(face_pil)
-        rep = DeepFace.represent(face_array, model_name='Facenet512', detector_backend='skip')
-        return np.array(rep[0]['embedding'], dtype=float)
+        rep = DeepFace.represent(
+            face_array,
+            model_name='Facenet512',
+            detector_backend='skip',
+            enforce_detection=False
+        )
+        return np.array(rep[0]['embedding'], dtype=np.float32)
     except Exception as e:
-        print(f"Embedding error: {e}")
+        logger.error(f"Embedding error: {e}")
         return None
 
 
@@ -85,6 +96,18 @@ async def register_student(
         if not data.get(field):
             return JSONResponse(status_code=400, content={"success": False, "error": f"{field} is required"})
 
+    clean_p = re.sub(r'\D', '', str(data.get('phoneNumber') or ''))
+    if len(clean_p) == 12 and clean_p.startswith('91'):
+        clean_p = clean_p[2:]
+    elif len(clean_p) == 11 and clean_p.startswith('0'):
+        clean_p = clean_p[1:]
+    elif len(clean_p) > 10:
+        clean_p = clean_p[-10:]
+
+    if len(clean_p) != 10:
+        return JSONResponse(status_code=400, content={"success": False, "error": "A valid 10-digit phone number is required"})
+    data['phoneNumber'] = clean_p
+
     if db.query(Student).filter_by(student_id=data['studentId']).first():
         return JSONResponse(status_code=400, content={"success": False, "error": "Student ID already exists"})
     if db.query(Student).filter_by(email=data['email']).first():
@@ -93,6 +116,10 @@ async def register_student(
     images = data.get('images')
     if not isinstance(images, list) or len(images) != 5:
         return JSONResponse(status_code=400, content={"success": False, "error": "Exactly 5 images are required"})
+
+    # Use singleton model manager if available
+    model_manager = getattr(request.app.state, "model_manager", None)
+    active_det = model_manager.get_detector() if (model_manager and model_manager.is_ready()) else detector
 
     embeddings = []
     for idx, img_b64 in enumerate(images):
@@ -103,7 +130,7 @@ async def register_student(
         except Exception:
             return JSONResponse(status_code=400, content={"success": False, "error": f"Invalid image data at index {idx}"})
 
-        faces = detect_faces_rgb(rgb)
+        faces = detect_faces_rgb(rgb, det=active_det)
         if len(faces) != 1:
             return JSONResponse(status_code=400, content={"success": False, "error": f"Ensure exactly one face in each image (failed at image {idx+1})"})
 
@@ -137,6 +164,19 @@ async def register_student(
             )
 
     now = time.time()
+    from models import AuthUser, MasterStudentRoster
+    auth_user = db.query(AuthUser).filter(
+        (AuthUser.email == data['email']) | (AuthUser.username == data['studentId'])
+    ).first()
+
+    # If the user account was already approved by admin or if admin is creating, stay active
+    if auth_user and auth_user.status == "active":
+        initial_status = "active"
+    elif current_user.get("role") == "admin":
+        initial_status = "active"
+    else:
+        initial_status = "pending_approval"
+
     student = Student(
         student_id=data['studentId'],
         student_name=data['studentName'],
@@ -146,16 +186,114 @@ async def register_student(
         semester=data['semester'],
         email=data['email'],
         phone_number=data['phoneNumber'],
-        status="active",
+        status=initial_status,
         embeddings=embeddings,
         face_registered=True,
         created_at=now,
         updated_at=now,
     )
     db.add(student)
+
+    # Sync AuthUser status
+    if auth_user:
+        if auth_user.status != "active":
+            auth_user.status = initial_status
+        if not auth_user.phone_number and data.get('phoneNumber'):
+            auth_user.phone_number = data['phoneNumber']
+
     db.commit()
 
-    return {"success": True, "studentId": data['studentId'], "record_id": str(student.id)}
+    msg = "Student registration completed and active!" if initial_status == "active" else "Student registration submitted! Your profile and face enrollment are pending administrator approval."
+    return {
+        "success": True,
+        "studentId": data['studentId'],
+        "record_id": str(student.id),
+        "status": initial_status,
+        "message": msg
+    }
+
+
+@student_registration_router.get('/api/student/registration-prefill')
+async def get_registration_prefill(
+    current_user: dict = Depends(require_auth("student", "teacher", "admin")),
+    db: Session = Depends(get_db)
+):
+    from models import AuthUser, MasterStudentRoster
+    email = current_user.get("email", "")
+
+    auth_user = db.query(AuthUser).filter_by(email=email).first() if email else None
+    student_record = db.query(Student).filter(
+        (Student.email.ilike(email)) |
+        ((Student.student_id.ilike(auth_user.username)) if auth_user and auth_user.username else False)
+    ).first() if email else None
+
+    # Try matching master roster by student roll number or email
+    master_match = None
+    if auth_user and auth_user.username:
+        master_match = db.query(MasterStudentRoster).filter(
+            MasterStudentRoster.roll_number.ilike(auth_user.username)
+        ).first()
+    if not master_match and email:
+        master_match = db.query(MasterStudentRoster).filter(
+            MasterStudentRoster.email.ilike(email)
+        ).first()
+
+    phone = ""
+    if auth_user and auth_user.phone_number:
+        phone = auth_user.phone_number
+    elif master_match and master_match.phone_number:
+        phone = master_match.phone_number
+    elif student_record and student_record.phone_number:
+        phone = student_record.phone_number
+
+    student_id = ""
+    if student_record and student_record.student_id:
+        student_id = student_record.student_id
+    elif auth_user and auth_user.username:
+        student_id = auth_user.username
+    elif master_match and master_match.roll_number:
+        student_id = master_match.roll_number
+
+    name = ""
+    if master_match and master_match.full_name:
+        name = master_match.full_name
+    elif student_record and student_record.student_name:
+        name = student_record.student_name
+    elif auth_user and auth_user.username and not any(c in auth_user.username for c in ['-', '/']):
+        name = auth_user.username
+
+    dept = ""
+    if master_match and master_match.department:
+        dept = master_match.department
+    elif student_record and student_record.department:
+        dept = student_record.department
+
+    year = ""
+    if master_match and master_match.year:
+        year = master_match.year
+    elif student_record and student_record.year:
+        year = student_record.year
+
+    division = ""
+    if master_match and master_match.division:
+        division = master_match.division
+    elif student_record and student_record.division:
+        division = student_record.division
+
+    return {
+        "success": True,
+        "prefill": {
+            "studentId": student_id,
+            "studentName": name,
+            "email": email,
+            "phoneNumber": phone,
+            "department": dept,
+            "year": year,
+            "division": division,
+            "hasStudentRecord": bool(student_record),
+            "matchedRoster": bool(master_match),
+        }
+    }
 
 
 @student_registration_router.get('/api/students/count')

@@ -1,34 +1,40 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { UserCog, PieChart, Users, Edit3, BarChart3, LogOut, ShieldCheck, ArrowRight, AlertTriangle } from 'lucide-react'
+import { UserCog, PieChart, Users, Edit3, BarChart3, LogOut, ShieldCheck, ArrowRight, UserCheck } from 'lucide-react'
 import { apiFetch } from '../../lib/api.js'
 
 export default function AdminDashboard() {
   const navigate = useNavigate()
+  const navigateRef = useRef(navigate)
+  navigateRef.current = navigate
   const [isLoggedIn, setIsLoggedIn] = useState(null)
   const [adminName, setAdminName] = useState('')
+  const [pendingCount, setPendingCount] = useState(0)
 
   useEffect(() => {
-    const checkStatus = () => {
-      try {
-        const loggedIn = localStorage.getItem('isLoggedIn')
-        const userType = localStorage.getItem('userType')
-        const name = localStorage.getItem('username')
-        if (!loggedIn || loggedIn !== 'true' || userType !== 'admin') {
-          setIsLoggedIn(false)
-          navigate('/signin')
-        } else {
-          setIsLoggedIn(true)
-          setAdminName(name || '')
-        }
-      } catch {
-        setIsLoggedIn(false)
-        navigate('/signin')
+    try {
+      const loggedIn = localStorage.getItem('isLoggedIn')
+      const userType = localStorage.getItem('userType')
+      const name = localStorage.getItem('username')
+      if (!loggedIn || loggedIn !== 'true' || userType !== 'admin') {
+        navigateRef.current('/signin', { replace: true })
+      } else {
+        setIsLoggedIn(true)
+        setAdminName(name || '')
+        // Fetch pending student registrations count
+        apiFetch('/api/admin/pending-count')
+          .then(res => res.json())
+          .then(data => {
+            if (data.success && typeof data.pendingCount === 'number') {
+              setPendingCount(data.pendingCount)
+            }
+          })
+          .catch(() => {})
       }
+    } catch {
+      navigateRef.current('/signin', { replace: true })
     }
-    const id = setTimeout(checkStatus, 100)
-    return () => clearTimeout(id)
-  }, [navigate])
+  }, []) // run once on mount only
 
   const handleLogout = async () => {
     try { await apiFetch('/api/logout', { method: 'POST' }) } catch {}
@@ -37,6 +43,14 @@ export default function AdminDashboard() {
   }
 
   const adminMenuItems = [
+    {
+      title: 'Student Approvals',
+      description: 'Review and approve pending student accounts & face registrations',
+      icon: <UserCheck className="w-7 h-7 text-white" />,
+      path: '/admin/approvals',
+      iconBg: 'bg-indigo-600',
+      badge: pendingCount > 0 ? `${pendingCount} Pending` : null,
+    },
     {
       title: 'Manage Teachers',
       description: 'Create, update, deactivate, or remove teacher accounts',
@@ -71,13 +85,6 @@ export default function AdminDashboard() {
       icon: <BarChart3 className="w-7 h-7 text-white" />,
       path: '/student/view-attendance',
       iconBg: 'bg-sky-500',
-    },
-    {
-      title: 'Defaulter List (< 75%)',
-      description: 'Audit attendance shortages, recovery targets, and export notice board PDFs',
-      icon: <AlertTriangle className="w-7 h-7 text-white" />,
-      path: '/attendance/defaulters',
-      iconBg: 'bg-rose-500',
     },
   ]
 
@@ -133,6 +140,11 @@ export default function AdminDashboard() {
               onClick={() => navigate(item.path)}
               className="card-hover bg-white rounded-2xl p-6 cursor-pointer relative overflow-hidden"
             >
+              {item.badge && (
+                <span className="absolute top-4 right-4 px-2.5 py-1 text-xs font-bold rounded-full bg-amber-500 text-white shadow-md animate-pulse z-10">
+                  {item.badge}
+                </span>
+              )}
               {/* Decorative circle */}
               <div className="absolute -bottom-6 -right-6 w-24 h-24 rounded-full opacity-10 bg-gray-400" />
 

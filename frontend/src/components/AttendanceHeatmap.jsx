@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef } from 'react'
 import {
   Flame,
   Trophy,
@@ -24,6 +24,7 @@ export default function AttendanceHeatmap({ records = [], totalClasses = 0 }) {
   const [selectedSubject, setSelectedSubject] = useState('All')
   const [hoveredDay, setHoveredDay] = useState(null)
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 })
+  const containerRef = useRef(null)
 
   // 1. Extract unique subjects for filtering
   const subjectsList = useMemo(() => {
@@ -214,12 +215,15 @@ export default function AttendanceHeatmap({ records = [], totalClasses = 0 }) {
   }, [dateMap])
 
   const handleMouseEnter = (day, e) => {
-    const rect = e.currentTarget.getBoundingClientRect()
     setHoveredDay(day)
-    setTooltipPos({
-      x: rect.left + rect.width / 2,
-      y: rect.top - 8,
-    })
+    if (containerRef.current) {
+      const containerRect = containerRef.current.getBoundingClientRect()
+      const rect = e.currentTarget.getBoundingClientRect()
+      setTooltipPos({
+        x: rect.left - containerRect.left + rect.width / 2,
+        y: rect.top - containerRect.top - 8,
+      })
+    }
   }
 
   const handleMouseLeave = () => {
@@ -229,14 +233,17 @@ export default function AttendanceHeatmap({ records = [], totalClasses = 0 }) {
   const dayLabels = ['Mon', '', 'Wed', '', 'Fri', '', 'Sun']
 
   return (
-    <div className="bg-white/80 backdrop-blur-xl rounded-2xl p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white/80">
-      {/* Top Header: Title, Theme Toggle, and Subject Filter */}
-      <div className="flex flex-wrap items-center justify-between gap-4 mb-6 pb-4 border-b border-gray-100/80">
+    <div
+      ref={containerRef}
+      className="relative bg-white rounded-2xl p-6 shadow-xs border border-slate-200/90"
+    >
+      {/* Top Header: Title and Subject Filter */}
+      <div className="flex flex-wrap items-center justify-between gap-4 mb-6 pb-4 border-b border-slate-100">
         <div>
           <div className="flex items-center gap-2">
-            <h3 className="text-xl font-bold text-gray-800">Attendance Activity Heatmap</h3>
+            <h3 className="text-lg sm:text-xl font-bold text-slate-900">Attendance Activity Heatmap</h3>
           </div>
-          <p className="text-sm text-gray-500 mt-0.5">
+          <p className="text-xs sm:text-sm font-medium text-slate-500 mt-0.5">
             Visual daily attendance pattern across the semester (last 20 weeks)
           </p>
         </div>
@@ -244,13 +251,13 @@ export default function AttendanceHeatmap({ records = [], totalClasses = 0 }) {
         {/* Subject Filter Dropdown */}
         {subjectsList.length > 2 && (
           <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
+            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
               Subject:
             </span>
             <select
               value={selectedSubject}
               onChange={e => setSelectedSubject(e.target.value)}
-              className="bg-white border border-gray-200 rounded-xl px-3 py-1.5 text-sm font-semibold text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-xs"
+              className="bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-2xs"
             >
               {subjectsList.map(s => (
                 <option key={s} value={s}>
@@ -262,62 +269,62 @@ export default function AttendanceHeatmap({ records = [], totalClasses = 0 }) {
         )}
       </div>
 
-      {/* Streak & Metric Badges Strip with Glassmorphism */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
-        <div className="bg-gradient-to-br from-amber-500/[0.08] via-amber-500/[0.02] to-white/80 backdrop-blur-xl border border-amber-200/80 rounded-2xl p-4 flex items-center gap-3.5 shadow-[inset_0_1px_1px_rgba(255,255,255,0.9),0_4px_16px_rgba(245,158,11,0.06)]">
-          <div className="p-3 bg-amber-500 text-white rounded-xl shadow-sm flex-shrink-0">
+      {/* Streak & Metric Badges Strip */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5 mb-6">
+        <div className="bg-amber-50/70 border border-amber-200/80 rounded-2xl p-4 flex items-center gap-3.5 shadow-2xs">
+          <div className="p-2.5 bg-amber-500 text-white rounded-xl shadow-xs flex-shrink-0">
             <Flame className="w-5 h-5" />
           </div>
           <div>
-            <div className="text-xl sm:text-2xl font-black text-amber-800 leading-none mb-1">
+            <div className="text-xl sm:text-2xl font-black text-amber-900 leading-none mb-1">
               {streakStats.currentStreak} {streakStats.currentStreak === 1 ? 'day' : 'days'}
             </div>
-            <div className="text-xs font-bold text-amber-900/60 uppercase tracking-wider">
+            <div className="text-[11px] font-bold text-amber-700/80 uppercase tracking-wider">
               Current Streak
             </div>
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-blue-500/[0.08] via-blue-500/[0.02] to-white/80 backdrop-blur-xl border border-blue-200/80 rounded-2xl p-4 flex items-center gap-3.5 shadow-[inset_0_1px_1px_rgba(255,255,255,0.9),0_4px_16px_rgba(59,130,246,0.06)]">
-          <div className="p-3 bg-blue-600 text-white rounded-xl shadow-sm flex-shrink-0">
+        <div className="bg-blue-50/70 border border-blue-200/80 rounded-2xl p-4 flex items-center gap-3.5 shadow-2xs">
+          <div className="p-2.5 bg-blue-600 text-white rounded-xl shadow-xs flex-shrink-0">
             <Trophy className="w-5 h-5" />
           </div>
           <div>
-            <div className="text-xl sm:text-2xl font-black text-blue-800 leading-none mb-1">
+            <div className="text-xl sm:text-2xl font-black text-blue-900 leading-none mb-1">
               {streakStats.longestStreak} {streakStats.longestStreak === 1 ? 'day' : 'days'}
             </div>
-            <div className="text-xs font-bold text-blue-900/60 uppercase tracking-wider">
+            <div className="text-[11px] font-bold text-blue-700/80 uppercase tracking-wider">
               Longest Streak
             </div>
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-emerald-500/[0.08] via-emerald-500/[0.02] to-white/80 backdrop-blur-xl border border-emerald-200/80 rounded-2xl p-4 flex items-center gap-3.5 shadow-[inset_0_1px_1px_rgba(255,255,255,0.9),0_4px_16px_rgba(16,185,129,0.06)]">
-          <div className="p-3 bg-emerald-600 text-white rounded-xl shadow-sm flex-shrink-0">
+        <div className="bg-emerald-50/70 border border-emerald-200/80 rounded-2xl p-4 flex items-center gap-3.5 shadow-2xs">
+          <div className="p-2.5 bg-emerald-600 text-white rounded-xl shadow-xs flex-shrink-0">
             <Calendar className="w-5 h-5" />
           </div>
           <div>
-            <div className="text-xl sm:text-2xl font-black text-emerald-800 leading-none mb-1">
+            <div className="text-xl sm:text-2xl font-black text-emerald-900 leading-none mb-1">
               {streakStats.attendedDaysCount}{' '}
-              <span className="text-sm font-semibold text-emerald-600">
+              <span className="text-xs font-semibold text-emerald-700">
                 / {streakStats.totalActiveDays}
               </span>
             </div>
-            <div className="text-xs font-bold text-emerald-900/60 uppercase tracking-wider">
+            <div className="text-[11px] font-bold text-emerald-700/80 uppercase tracking-wider">
               Days Attended
             </div>
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-purple-500/[0.08] via-purple-500/[0.02] to-white/80 backdrop-blur-xl border border-purple-200/80 rounded-2xl p-4 flex items-center gap-3.5 shadow-[inset_0_1px_1px_rgba(255,255,255,0.9),0_4px_16px_rgba(168,85,247,0.06)]">
-          <div className="p-3 bg-purple-600 text-white rounded-xl shadow-sm flex-shrink-0">
+        <div className="bg-purple-50/70 border border-purple-200/80 rounded-2xl p-4 flex items-center gap-3.5 shadow-2xs">
+          <div className="p-2.5 bg-purple-600 text-white rounded-xl shadow-xs flex-shrink-0">
             <TrendingUp className="w-5 h-5" />
           </div>
           <div>
-            <div className="text-xl sm:text-2xl font-black text-purple-800 leading-none mb-1">
+            <div className="text-xl sm:text-2xl font-black text-purple-900 leading-none mb-1">
               {streakStats.dailySuccessRate}%
             </div>
-            <div className="text-xs font-bold text-purple-900/60 uppercase tracking-wider">
+            <div className="text-[11px] font-bold text-purple-700/80 uppercase tracking-wider">
               Daily Attendance Rate
             </div>
           </div>
@@ -359,28 +366,28 @@ export default function AttendanceHeatmap({ records = [], totalClasses = 0 }) {
                     const isFut = day.isFuture
                     const isToday = day.isToday
 
-                    // Clean GitHub-style tiles: soft slate-gray when no class, vivid colors when attended
+                    // Clean GitHub-style tiles: soft slate-gray when no class, vivid solid colors when attended
                     let cellClass = ''
                     if (isFut) {
                       cellClass =
-                        'bg-slate-100/50 border border-dashed border-slate-200 opacity-40'
+                        'bg-slate-100 border border-dashed border-slate-200 opacity-40'
                     } else if (day.status === 'present') {
                       cellClass =
-                        'bg-gradient-to-br from-emerald-500 to-emerald-600 border border-emerald-400 shadow-[0_2px_6px_rgba(16,185,129,0.3),inset_0_1px_1px_rgba(255,255,255,0.6)]'
+                        'bg-emerald-500 border border-emerald-600 shadow-2xs'
                     } else if (day.status === 'partial') {
                       cellClass =
-                        'bg-gradient-to-br from-amber-400 to-amber-500 border border-amber-300 shadow-[0_2px_6px_rgba(245,158,11,0.3),inset_0_1px_1px_rgba(255,255,255,0.6)]'
+                        'bg-amber-400 border border-amber-500 shadow-2xs'
                     } else if (day.status === 'absent') {
                       cellClass =
-                        'bg-gradient-to-br from-rose-500 to-rose-600 border border-rose-400 shadow-[0_2px_6px_rgba(244,63,94,0.3),inset_0_1px_1px_rgba(255,255,255,0.6)]'
+                        'bg-rose-500 border border-rose-600 shadow-2xs'
                     } else {
-                      // Empty cell (no class recorded) - clear light slate tile, clearly visible like GitHub
+                      // Empty cell (no class recorded)
                       cellClass =
-                        'bg-slate-200/90 border border-slate-300/90 shadow-[inset_0_1px_1px_rgba(255,255,255,0.8)] hover:bg-slate-300 hover:border-slate-400'
+                        'bg-slate-200/90 border border-slate-300/80 hover:bg-slate-300 hover:border-slate-400'
                     }
 
                     const todayClass = isToday
-                      ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-slate-50 shadow-[0_0_10px_rgba(59,130,246,0.5)]'
+                      ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-white shadow-xs'
                       : ''
 
                     return (
@@ -388,7 +395,7 @@ export default function AttendanceHeatmap({ records = [], totalClasses = 0 }) {
                         key={dIdx}
                         onMouseEnter={e => !isFut && handleMouseEnter(day, e)}
                         onMouseLeave={handleMouseLeave}
-                        className={`w-5 h-5 rounded-[6px] cursor-pointer transition-all duration-150 transform hover:scale-135 hover:z-10 relative ${cellClass} ${todayClass}`}
+                        className={`w-5 h-5 rounded-[5px] cursor-pointer transition-transform duration-150 hover:scale-125 hover:z-10 relative ${cellClass} ${todayClass}`}
                       />
                     )
                   })}
@@ -400,42 +407,42 @@ export default function AttendanceHeatmap({ records = [], totalClasses = 0 }) {
       </div>
 
       {/* Legend & Details Footer */}
-      <div className="flex flex-wrap items-center justify-between gap-4 mt-5 pt-4 border-t border-gray-100/80 text-xs font-medium text-gray-500">
-        <div className="flex items-center gap-1.5 text-gray-400">
-          <Info className="w-4 h-4 text-blue-500/70" />
+      <div className="flex flex-wrap items-center justify-between gap-4 mt-5 pt-4 border-t border-slate-100 text-xs font-medium text-slate-500">
+        <div className="flex items-center gap-1.5 text-slate-500">
+          <Info className="w-4 h-4 text-blue-500" />
           <span>Hover over any calendar cell to inspect daily lectures &amp; time</span>
         </div>
 
         {/* Legend */}
         <div className="flex items-center gap-3">
-          <span className="text-gray-400 text-xs font-semibold">Legend:</span>
+          <span className="text-slate-400 text-xs font-semibold">Legend:</span>
           <div className="flex items-center gap-1.5">
-            <span className="w-4 h-4 rounded-[5px] bg-slate-200 border border-slate-300 shadow-xs" />
-            <span>No Class</span>
+            <span className="w-3.5 h-3.5 rounded bg-slate-200 border border-slate-300" />
+            <span className="text-slate-600">No Class</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="w-4 h-4 rounded-[5px] bg-gradient-to-br from-rose-500 to-rose-600 border border-rose-400 shadow-xs shadow-rose-300" />
-            <span>Absent (0%)</span>
+            <span className="w-3.5 h-3.5 rounded bg-rose-500 border border-rose-600" />
+            <span className="text-slate-600">Absent (0%)</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="w-4 h-4 rounded-[5px] bg-gradient-to-br from-amber-400 to-amber-500 border border-amber-300 shadow-xs shadow-amber-300" />
-            <span>Partial (&lt; 100%)</span>
+            <span className="w-3.5 h-3.5 rounded bg-amber-400 border border-amber-500" />
+            <span className="text-slate-600">Partial (&lt; 100%)</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="w-4 h-4 rounded-[5px] bg-gradient-to-br from-emerald-400 to-emerald-600 border border-emerald-400 shadow-xs shadow-emerald-300" />
-            <span>Present (100%)</span>
+            <span className="w-3.5 h-3.5 rounded bg-emerald-500 border border-emerald-600" />
+            <span className="text-slate-600">Present (100%)</span>
           </div>
         </div>
       </div>
 
-      {/* Floating Interactive Tooltip with Glassmorphism */}
+      {/* Floating Interactive Tooltip */}
       {hoveredDay && (
         <div
-          className="fixed z-50 pointer-events-none transform -translate-x-1/2 -translate-y-full mb-2 bg-gray-900/90 backdrop-blur-md text-white text-xs rounded-xl py-2.5 px-3.5 shadow-2xl border border-white/20 min-w-[210px]"
+          className="absolute z-50 pointer-events-none transform -translate-x-1/2 -translate-y-full mb-2 bg-slate-900 text-white text-xs rounded-xl py-2.5 px-3.5 shadow-xl border border-slate-800 min-w-[210px]"
           style={{ left: `${tooltipPos.x}px`, top: `${tooltipPos.y}px` }}
         >
           {/* Tooltip Header */}
-          <div className="font-bold text-gray-200 border-b border-gray-700 pb-1 mb-1.5 flex items-center justify-between gap-3">
+          <div className="font-bold text-slate-200 border-b border-slate-800 pb-1 mb-1.5 flex items-center justify-between gap-3">
             <span>
               {hoveredDay.date.toLocaleDateString('en-US', {
                 weekday: 'short',
@@ -445,7 +452,7 @@ export default function AttendanceHeatmap({ records = [], totalClasses = 0 }) {
               })}
             </span>
             {hoveredDay.isToday && (
-              <span className="px-1.5 py-0.2 bg-blue-500/30 text-blue-300 text-[10px] rounded font-bold">
+              <span className="px-1.5 py-0.5 bg-blue-500/30 text-blue-300 text-[10px] rounded font-bold">
                 Today
               </span>
             )}

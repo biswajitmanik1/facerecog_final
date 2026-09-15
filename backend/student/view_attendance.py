@@ -62,7 +62,20 @@ async def get_attendance(
         # Resolve student_id if it's an AuthUser username or email
         actual_student_id = student_id
         student_obj = None
-        if student_id:
+
+        if user_role == "student":
+            # Auto-resolve student from token email
+            student_obj = db.query(Student).filter(
+                Student.email.ilike(current_user.get("email", ""))
+            ).first()
+            if not student_obj and student_id:
+                student_obj = db.query(Student).filter(
+                    (Student.student_id == student_id) | (Student.email == student_id)
+                ).first()
+            if student_obj:
+                actual_student_id = student_obj.student_id
+                student_id = student_obj.student_id
+        elif student_id:
             student_obj = db.query(Student).filter(
                 (Student.student_id == student_id) | (Student.email == student_id)
             ).first()
@@ -77,7 +90,7 @@ async def get_attendance(
 
         # If student_id is provided without a specific date (e.g. Student Dashboard),
         # retrieve all attendance records across all sessions for that student over the semester.
-        if student_id and not date:
+        if (student_id or user_role == "student") and not date:
             if not student_obj:
                 # Student account exists in auth, but has not completed student registration / face enrollment yet
                 return {

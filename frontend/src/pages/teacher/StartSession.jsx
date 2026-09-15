@@ -340,7 +340,7 @@ export default function StartSession() {
                     isLiveMode={true}
                     onCapture={handleRecognize}
                     facesData={facesData}
-                    captureIntervalMs={2000}
+                    captureIntervalMs={700}
                   />
                 </div>
               )}

@@ -10,6 +10,7 @@ class AuthUser(Base):
     username = Column(String(120), nullable=False)
     email = Column(String(255), unique=True, nullable=False)
     password = Column(String(255), nullable=False)
+    phone_number = Column(String(30), nullable=True)
     status = Column(String(20), default="active")
     created_at = Column(Float, default=time.time)
 
@@ -18,6 +19,8 @@ class AuthUser(Base):
             "_id": str(self.id),
             "username": self.username,
             "email": self.email,
+            "phoneNumber": self.phone_number,
+            "phone_number": self.phone_number,
             "status": self.status,
             "created_at": self.created_at,
         }
@@ -35,6 +38,7 @@ class AuthTeacher(Base):
     password = Column(String(255), nullable=False)
     employee_id = Column(String(100))
     department = Column(String(100))
+    phone_number = Column(String(30), nullable=True)
     role = Column(String(20), default="teacher")
     status = Column(String(20), default="active")
     created_at = Column(Float, default=time.time)
@@ -46,6 +50,8 @@ class AuthTeacher(Base):
             "email": self.email,
             "employeeId": self.employee_id,
             "department": self.department,
+            "phoneNumber": self.phone_number,
+            "phone_number": self.phone_number,
             "role": self.role,
             "status": self.status,
             "created_at": self.created_at,
@@ -62,6 +68,7 @@ class AuthAdmin(Base):
     username = Column(String(120), nullable=False)
     email = Column(String(255), unique=True, nullable=False)
     password = Column(String(255), nullable=False)
+    phone_number = Column(String(30), nullable=True)
     status = Column(String(20), default="active")
     created_at = Column(Float, default=time.time)
 
@@ -70,6 +77,8 @@ class AuthAdmin(Base):
             "_id": str(self.id),
             "username": self.username,
             "email": self.email,
+            "phoneNumber": self.phone_number,
+            "phone_number": self.phone_number,
             "role": "admin",
             "status": self.status,
             "created_at": self.created_at,
@@ -152,3 +161,31 @@ class FaceUser(Base):
     user_id = Column(String(100))
     name = Column(String(200))
     embedding = Column(JSONB)
+
+
+class MasterStudentRoster(Base):
+    __tablename__ = "master_student_roster"
+
+    id = Column(Integer, primary_key=True)
+    roll_number = Column(String(100), unique=True, nullable=False, index=True)
+    full_name = Column(String(200), nullable=False)
+    department = Column(String(100), nullable=False)
+    year = Column(String(50), nullable=True)
+    division = Column(String(50), nullable=True)
+    email = Column(String(255), nullable=True)
+    phone_number = Column(String(30), nullable=True)
+    created_at = Column(Float, default=time.time)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "rollNumber": self.roll_number,
+            "fullName": self.full_name,
+            "department": self.department,
+            "year": self.year,
+            "division": self.division,
+            "email": self.email,
+            "phoneNumber": self.phone_number,
+            "createdAt": self.created_at,
+        }
+

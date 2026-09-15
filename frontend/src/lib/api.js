@@ -1,4 +1,6 @@
-export const API_BASE = 'http://127.0.0.1:5000'
+// Use empty string so API calls go through Vite proxy → backend at :5000
+// This avoids cross-origin issues in the browser
+export const API_BASE = ''
 
 export function getToken() {
   if (typeof window === 'undefined') return null

@@ -106,7 +106,7 @@ class AttendanceEmbeddingCache:
 
             logger.info(f"Refreshing attendance embedding cache for {session_filter}")
 
-            query = db.query(Student)
+            query = db.query(Student).filter(Student.status == "active")
             if session_filter.get("department"):
                 query = query.filter(Student.department == session_filter["department"])
             if session_filter.get("year"):
@@ -179,7 +179,7 @@ async def create_session(
         student_filter["division"] = data.get("division")
 
     try:
-        query = db.query(Student)
+        query = db.query(Student).filter(Student.status == "active")
         if student_filter:
             if student_filter.get("department"):
                 query = query.filter(Student.department == student_filter["department"])
@@ -248,7 +248,7 @@ async def end_session(
             if s.get("present")
         )
 
-        query = db.query(Student)
+        query = db.query(Student).filter(Student.status == "active")
         if session.department:
             query = query.filter(Student.department == session.department)
         if session.year:

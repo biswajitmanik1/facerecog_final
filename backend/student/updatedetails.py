@@ -1,4 +1,5 @@
 import time
+import re
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Request
@@ -186,7 +187,23 @@ async def update_student(
         student.year = data.get("year", student.year)
         student.division = data.get("division", student.division)
         student.semester = data.get("semester", student.semester)
-        student.phone_number = data.get("phoneNumber", student.phone_number)
+
+        if "phoneNumber" in data or "phone_number" in data:
+            raw_p = str(data.get("phoneNumber") or data.get("phone_number") or "").strip()
+            if raw_p:
+                clean_p = re.sub(r'\D', '', raw_p)
+                if len(clean_p) == 12 and clean_p.startswith('91'):
+                    clean_p = clean_p[2:]
+                elif len(clean_p) == 11 and clean_p.startswith('0'):
+                    clean_p = clean_p[1:]
+                elif len(clean_p) > 10:
+                    clean_p = clean_p[-10:]
+                if len(clean_p) != 10:
+                    return JSONResponse(status_code=400, content={"success": False, "error": "Phone number must be exactly 10 digits"})
+                student.phone_number = clean_p
+            else:
+                student.phone_number = None
+
         student.updated_at = time.time()
         student.updated_by = user_email
         student.updated_by_type = user_type
@@ -467,7 +484,23 @@ async def update_student_teacher(
         student.division = data.get("division", student.division)
         student.semester = data.get("semester", student.semester)
         student.email = data.get("email", student.email)
-        student.phone_number = data.get("phoneNumber", student.phone_number)
+
+        if "phoneNumber" in data or "phone_number" in data:
+            raw_p = str(data.get("phoneNumber") or data.get("phone_number") or "").strip()
+            if raw_p:
+                clean_p = re.sub(r'\D', '', raw_p)
+                if len(clean_p) == 12 and clean_p.startswith('91'):
+                    clean_p = clean_p[2:]
+                elif len(clean_p) == 11 and clean_p.startswith('0'):
+                    clean_p = clean_p[1:]
+                elif len(clean_p) > 10:
+                    clean_p = clean_p[-10:]
+                if len(clean_p) != 10:
+                    return JSONResponse(status_code=400, content={"success": False, "error": "Phone number must be exactly 10 digits"})
+                student.phone_number = clean_p
+            else:
+                student.phone_number = None
+
         student.updated_at = time.time()
         student.updated_by = current_user["email"]
         student.updated_by_type = current_user["role"]

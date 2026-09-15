@@ -19,6 +19,7 @@ import {
   Key,
   Users,
   AlertTriangle,
+  Phone,
 } from 'lucide-react'
 import { apiFetch } from '../../lib/api.js'
 
@@ -46,6 +47,7 @@ export default function ManageTeachers() {
     password: '',
     employeeId: '',
     department: '',
+    phoneNumber: '',
   })
 
   // Search & Filter state
@@ -60,6 +62,7 @@ export default function ManageTeachers() {
     email: '',
     employeeId: '',
     department: '',
+    phoneNumber: '',
     status: 'active',
     password: '',
   })
@@ -134,21 +137,33 @@ export default function ManageTeachers() {
 
   // Form handlers
   const handleCreateChange = e => {
-    setCreateForm(prev => ({ ...prev, [e.target.name]: e.target.value }))
+    const { name, value } = e.target
+    if (name === 'phoneNumber') {
+      const digits = value.replace(/\D/g, '').slice(0, 10)
+      setCreateForm(prev => ({ ...prev, [name]: digits }))
+      return
+    }
+    setCreateForm(prev => ({ ...prev, [name]: value }))
   }
 
   const handleCreate = async e => {
     e.preventDefault()
     setCreating(true)
+    const cleanPhone = (createForm.phoneNumber || '').replace(/\D/g, '')
+    if (!/^[0-9]{10}$/.test(cleanPhone)) {
+      showStatus('Please enter a valid 10-digit phone number', 'error')
+      setCreating(false)
+      return
+    }
     try {
       const res = await apiFetch('/api/admin/teachers', {
         method: 'POST',
-        body: JSON.stringify(createForm),
+        body: JSON.stringify({ ...createForm, phoneNumber: cleanPhone }),
       })
       const data = await res.json()
       if (data.success) {
         showStatus(`Teacher account created for "${createForm.username}"`, 'success')
-        setCreateForm({ username: '', email: '', password: '', employeeId: '', department: '' })
+        setCreateForm({ username: '', email: '', password: '', employeeId: '', department: '', phoneNumber: '' })
         fetchTeachers()
       } else {
         showStatus(data.error || 'Failed to create teacher', 'error')
@@ -168,6 +183,7 @@ export default function ManageTeachers() {
       email: teacher.email || '',
       employeeId: teacher.employeeId || teacher.employee_id || '',
       department: teacher.department || '',
+      phoneNumber: teacher.phoneNumber || teacher.phone_number || '',
       status: teacher.status || 'active',
       password: '',
     })
@@ -180,18 +196,32 @@ export default function ManageTeachers() {
       email: '',
       employeeId: '',
       department: '',
+      phoneNumber: '',
       status: 'active',
       password: '',
     })
   }
 
   const handleEditChange = e => {
-    setEditForm(prev => ({ ...prev, [e.target.name]: e.target.value }))
+    const { name, value } = e.target
+    if (name === 'phoneNumber') {
+      const digits = value.replace(/\D/g, '').slice(0, 10)
+      setEditForm(prev => ({ ...prev, [name]: digits }))
+      return
+    }
+    setEditForm(prev => ({ ...prev, [name]: value }))
   }
 
   const handleUpdateTeacher = async e => {
     e.preventDefault()
     if (!editingTeacher) return
+    if (editForm.phoneNumber) {
+      const cleanPhone = editForm.phoneNumber.replace(/\D/g, '')
+      if (!/^[0-9]{10}$/.test(cleanPhone)) {
+        showStatus('Please enter a valid 10-digit phone number', 'error')
+        return
+      }
+    }
     setSavingEdit(true)
     try {
       const payload = {
@@ -199,6 +229,7 @@ export default function ManageTeachers() {
         email: editForm.email.trim(),
         employeeId: editForm.employeeId.trim(),
         department: editForm.department,
+        phoneNumber: editForm.phoneNumber ? editForm.phoneNumber.replace(/\D/g, '').slice(0, 10) : '',
         status: editForm.status,
       }
       if (editForm.password && editForm.password.trim()) {
@@ -444,6 +475,26 @@ export default function ManageTeachers() {
                       placeholder="e.g. EMP-CSE-001"
                       required
                       value={createForm.employeeId}
+                      onChange={handleCreateChange}
+                      className={inputCls}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">
+                    Phone Number <span className="text-purple-600 font-bold">*</span>
+                  </label>
+                  <div className="relative">
+                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    <input
+                      name="phoneNumber"
+                      type="tel"
+                      inputMode="numeric"
+                      maxLength={10}
+                      required
+                      placeholder="e.g. 9876543210 (10 digits)"
+                      value={createForm.phoneNumber}
                       onChange={handleCreateChange}
                       className={inputCls}
                     />
@@ -734,24 +785,43 @@ export default function ManageTeachers() {
 
                 <div>
                   <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                    Department
+                    Phone Number
                   </label>
                   <div className="relative">
-                    <Building className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                    <select
-                      name="department"
-                      value={editForm.department}
+                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    <input
+                      name="phoneNumber"
+                      type="tel"
+                      inputMode="numeric"
+                      maxLength={10}
+                      value={editForm.phoneNumber}
                       onChange={handleEditChange}
-                      className={selectCls}
-                    >
-                      <option value="">Select Department</option>
-                      {departments.map(d => (
-                        <option key={d} value={d}>
-                          {d}
-                        </option>
-                      ))}
-                    </select>
+                      className={inputCls}
+                      placeholder="e.g. 9876543210 (10 digits)"
+                    />
                   </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                  Department
+                </label>
+                <div className="relative">
+                  <Building className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <select
+                    name="department"
+                    value={editForm.department}
+                    onChange={handleEditChange}
+                    className={selectCls}
+                  >
+                    <option value="">Select Department</option>
+                    {departments.map(d => (
+                      <option key={d} value={d}>
+                        {d}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
 

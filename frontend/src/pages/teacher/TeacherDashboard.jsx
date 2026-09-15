@@ -1,39 +1,35 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Users, Edit3, Camera, BarChart3, LogOut, ArrowRight, GraduationCap, AlertTriangle } from 'lucide-react'
 import { apiFetch } from '../../lib/api.js'
 
 export default function TeacherDashboard() {
   const navigate = useNavigate()
+  const navigateRef = useRef(navigate)
+  navigateRef.current = navigate
   const [isLoggedIn, setIsLoggedIn] = useState(null)
   const [teacherName, setTeacherName] = useState('')
   const [employeeId, setEmployeeId] = useState('')
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const checkStatus = () => {
-      try {
-        const loggedIn = localStorage.getItem('isLoggedIn')
-        const userType = localStorage.getItem('userType')
-        const name = localStorage.getItem('username')
-        const empId = localStorage.getItem('employeeId')
-        if (!loggedIn || loggedIn !== 'true' || userType !== 'teacher') {
-          setIsLoggedIn(false)
-          navigate('/signin')
-        } else {
-          setIsLoggedIn(true)
-          setTeacherName(name || '')
-          setEmployeeId(empId || '')
-          setLoading(false)
-        }
-      } catch {
-        setIsLoggedIn(false)
-        navigate('/signin')
+    try {
+      const loggedIn = localStorage.getItem('isLoggedIn')
+      const userType = localStorage.getItem('userType')
+      const name = localStorage.getItem('username')
+      const empId = localStorage.getItem('employeeId')
+      if (!loggedIn || loggedIn !== 'true' || userType !== 'teacher') {
+        navigateRef.current('/signin', { replace: true })
+      } else {
+        setIsLoggedIn(true)
+        setTeacherName(name || '')
+        setEmployeeId(empId || '')
+        setLoading(false)
       }
+    } catch {
+      navigateRef.current('/signin', { replace: true })
     }
-    const id = setTimeout(checkStatus, 100)
-    return () => clearTimeout(id)
-  }, [navigate])
+  }, []) // run once on mount only
 
   const handleLogout = async () => {
     try { await apiFetch('/api/logout', { method: 'POST' }) } catch {}
