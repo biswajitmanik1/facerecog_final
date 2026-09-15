@@ -56,7 +56,7 @@ FastAPI Server (localhost:5000)
         └── DeepFace Facenet512 — 512D embedding
               │  SQLAlchemy ORM
               ▼
-        PostgreSQL (facefast database)
+        PostgreSQL (finalfacerecog database)
           ├── auth_users / auth_teachers / auth_admins
           ├── students  (embeddings stored as JSONB)
           ├── attendance_records
@@ -71,7 +71,7 @@ FastAPI Server (localhost:5000)
 
 - **Python** 3.10+
 - **Node.js** 18+
-- **PostgreSQL** 15+ (create a database named `facefast`)
+- **PostgreSQL** 15+ (create a database named `finalfacerecog`)
 - GPU optional but recommended for faster face recognition
 
 ---
@@ -95,7 +95,7 @@ pip install -r requirements.txt
 Create a `.env` file inside the `backend/` folder:
 
 ```env
-DB_URL=postgresql://your_user:your_password@localhost:5432/facefast
+DB_URL=postgresql://your_user:your_password@localhost:5432/finalfacerecog
 SECRET_KEY=your-secret-key-here
 THRESHOLD=0.6
 ```

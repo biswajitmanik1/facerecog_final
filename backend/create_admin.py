@@ -21,8 +21,7 @@ load_dotenv()
 
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    # "postgresql+psycopg2://ams_app:ams_app_pw@localhost:5432/facefast",
-    "postgresql+psycopg2://postgres:Biswajit2005@localhost:5432/facefast",
+    "postgresql+psycopg2://postgres:Biswajit2005@localhost:5432/finalfacerecog",
 )
 
 import bcrypt
