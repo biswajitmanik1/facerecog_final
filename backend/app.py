@@ -212,8 +212,9 @@ try:
         conn.execute(text("ALTER TABLE attendance_records ADD COLUMN IF NOT EXISTS teacher_lat FLOAT"))
         conn.execute(text("ALTER TABLE attendance_records ADD COLUMN IF NOT EXISTS teacher_lng FLOAT"))
         conn.execute(text("ALTER TABLE attendance_records ADD COLUMN IF NOT EXISTS gps_radius FLOAT DEFAULT 10"))
+        conn.execute(text("ALTER TABLE attendance_records ADD COLUMN IF NOT EXISTS session_code VARCHAR(10)"))
         conn.commit()
-    logger.info("GPS columns ready in attendance_records")
+    logger.info("GPS and session_code columns ready in attendance_records")
 except Exception as e:
     logger.warning(f"GPS migration skipped: {e}")
 

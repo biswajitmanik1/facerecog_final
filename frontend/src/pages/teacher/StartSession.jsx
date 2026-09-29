@@ -46,32 +46,44 @@ export default function StartSession() {
 
   // Session code state
   const [sessionCode, setSessionCode] = useState(null)
-  const [codeCountdown, setCodeCountdown] = useState(60)
-  const codeIntervalRef = useRef(null)
+  const [regeneratingCode, setRegeneratingCode] = useState(false)
 
-  const departments = ['Computer Science', 'Information Technology', 'Electronics', 'Mechanical', 'Civil']
-  const years = ['1st Year', '2nd Year', '3rd Year', '4th Year']
-  const divisions = ['A', 'B', 'C', 'D']
+  const fetchSessionCode = useCallback(async (sid) => {
+    if (!sid) return
+    try {
+      const res = await apiFetch(`/api/attendance/session-code/${sid}`)
+      const data = await res.json()
+      if (data.success && data.code) {
+        setSessionCode(data.code)
+      }
+    } catch (_) {}
+  }, [])
 
-  const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value })
-
-  // Poll session code every second when session is active
   useEffect(() => {
-    if (!sessionId) return
-    const fetchCode = async () => {
-      try {
-        const res = await apiFetch(`/api/attendance/session-code/${sessionId}`)
-        const data = await res.json()
-        if (data.success) {
-          setSessionCode(data.code)
-          setCodeCountdown(data.seconds_remaining)
-        }
-      } catch (_) {}
+    if (sessionId) {
+      fetchSessionCode(sessionId)
     }
-    fetchCode()
-    codeIntervalRef.current = setInterval(fetchCode, 1000)
-    return () => clearInterval(codeIntervalRef.current)
-  }, [sessionId])
+  }, [sessionId, fetchSessionCode])
+
+  const handleRegenerateCode = async () => {
+    if (!sessionId) return
+    setRegeneratingCode(true)
+    try {
+      const res = await apiFetch(`/api/attendance/regenerate-code/${sessionId}`, { method: 'POST' })
+      const data = await res.json()
+      if (data.success && data.code) {
+        setSessionCode(data.code)
+        setStatus(`🔄 New 4-digit code generated: ${data.code}`)
+      } else {
+        setStatus(`❌ ${data.error || 'Failed to regenerate code'}`)
+      }
+    } catch (err) {
+      console.error(err)
+      setStatus('❌ Network error regenerating code')
+    } finally {
+      setRegeneratingCode(false)
+    }
+  }
 
   const captureGps = () => new Promise((resolve) => {
     if (!navigator.geolocation) { resolve(null); return }
@@ -110,6 +122,7 @@ export default function StartSession() {
       const data = await res.json()
       if (data.session_id) {
         setSessionId(data.session_id)
+        if (data.session_code) setSessionCode(data.session_code)
         setStatus(`✅ Session #${data.session_id} created! ${gps ? '📍 GPS enabled.' : '⚠️ No GPS — students can mark from anywhere.'}`)
         setSessionActive(true)
       } else {
@@ -535,21 +548,28 @@ export default function StartSession() {
                     </span>
                   )}
                 </div>
-                <div className="bg-indigo-600 rounded-2xl py-6 px-4 text-center mb-3">
-                  <p className="text-indigo-200 text-sm font-semibold mb-1 uppercase tracking-widest">Session #{sessionId}</p>
-                  <div className="flex items-center justify-center gap-3">
+                <div className="bg-indigo-600 rounded-2xl py-6 px-4 text-center mb-3 shadow-sm">
+                  <p className="text-indigo-200 text-xs font-bold mb-2 uppercase tracking-widest">
+                    Session #{sessionId} Passcode
+                  </p>
+                  <div className="flex items-center justify-center gap-3 mb-4">
                     {(sessionCode || '----').split('').map((digit, i) => (
-                      <div key={i} className="w-14 h-16 bg-white rounded-xl flex items-center justify-center text-4xl font-black text-indigo-700 shadow-lg">
+                      <div key={i} className="w-14 h-16 bg-white rounded-xl flex items-center justify-center text-4xl font-black text-indigo-700 shadow-md">
                         {digit}
                       </div>
                     ))}
                   </div>
-                  <p className="text-indigo-200 text-sm mt-3 font-medium">
-                    Changes in <span className="text-white font-black">{codeCountdown}s</span>
-                  </p>
-                </div>
-                <div className="w-full bg-indigo-100 rounded-full h-2">
-                  <div className="bg-indigo-500 h-2 rounded-full transition-all duration-1000" style={{ width: `${(codeCountdown / 300) * 100}%` }} />
+
+                  {/* Regenerate Code Button */}
+                  <button
+                    onClick={handleRegenerateCode}
+                    disabled={regeneratingCode}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-500/80 hover:bg-indigo-500 active:scale-95 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer disabled:opacity-50"
+                    title="Generate a new 4-digit code"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${regeneratingCode ? 'animate-spin' : ''}`} />
+                    {regeneratingCode ? 'Generating...' : 'Regenerate Code'}
+                  </button>
                 </div>
                 <p className="text-xs text-gray-400 text-center mt-2">Students: open app → Mark Attendance → enter 4-digit code + selfie</p>
 

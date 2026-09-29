@@ -10,6 +10,7 @@ from scipy.spatial.distance import cosine
 from deepface import DeepFace
 import logging
 import time
+import random
 
 from database import get_db
 from models import AttendanceRecord, Student, AuthTeacher
@@ -217,12 +218,14 @@ async def create_session(
         teacher_lat=data.get("teacher_lat"),
         teacher_lng=data.get("teacher_lng"),
         gps_radius=float(data.get("gps_radius", 10)),
+        session_code=str(random.randint(1000, 9999)),
     )
     db.add(session)
     db.commit()
 
     return {
         "session_id": str(session.id),
+        "session_code": session.session_code,
         "students_count": len(students_list),
         "gps_enabled": session.teacher_lat is not None,
     }

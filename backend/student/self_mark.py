@@ -10,6 +10,7 @@ import hashlib
 import time
 import base64
 import math
+import random
 import numpy as np
 from PIL import Image
 import io
@@ -30,31 +31,6 @@ logger = logging.getLogger(__name__)
 self_mark_router = APIRouter()
 
 
-# ─── Session Code (rotates every 60 seconds) ──────────────────────
-
-def generate_session_code(session_id: int) -> str:
-    """Deterministic 4-digit code per session — valid for 5 minutes."""
-    current_window = int(time.time() // 300)
-    raw = f"ams-session-{session_id}-{current_window}"
-    hash_val = int(hashlib.sha256(raw.encode()).hexdigest(), 16)
-    return str(hash_val % 10000).zfill(4)
-
-
-def validate_session_code(session_id: int, submitted_code: str) -> bool:
-    """Accept current window and previous window (grace period)."""
-    current_window = int(time.time() // 300)
-    for offset in [0, -1]:
-        raw = f"ams-session-{session_id}-{current_window + offset}"
-        hash_val = int(hashlib.sha256(raw.encode()).hexdigest(), 16)
-        if str(hash_val % 10000).zfill(4) == submitted_code:
-            return True
-    return False
-
-
-def seconds_until_refresh() -> int:
-    return 300 - (int(time.time()) % 300)
-
-
 # ─── GPS Haversine Distance ────────────────────────────────────────
 
 def haversine_distance(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
@@ -67,7 +43,7 @@ def haversine_distance(lat1: float, lng1: float, lat2: float, lng2: float) -> fl
     return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
 
-# ─── Teacher: Get Current Session Code ────────────────────────────
+# ─── Teacher: Get & Regenerate Session Code ───────────────────────
 
 @self_mark_router.get('/api/attendance/session-code/{session_id}')
 async def get_session_code(
@@ -81,13 +57,43 @@ async def get_session_code(
     if session.finalized:
         return JSONResponse(status_code=400, content={"success": False, "error": "Session already finalized"})
 
+    if not session.session_code:
+        session.session_code = str(random.randint(1000, 9999))
+        db.commit()
+
     return {
         "success": True,
-        "code": generate_session_code(session_id),
-        "seconds_remaining": seconds_until_refresh(),
+        "code": session.session_code,
         "session_id": session_id,
         "gps_enabled": session.teacher_lat is not None,
         "gps_radius": session.gps_radius,
+    }
+
+
+@self_mark_router.post('/api/attendance/regenerate-code/{session_id}')
+async def regenerate_session_code(
+    session_id: int,
+    current_user: dict = Depends(require_auth("teacher", "admin")),
+    db: DBSession = Depends(get_db)
+):
+    """Regenerates a fresh random 4-digit code on demand for this session."""
+    session = db.get(AttendanceRecord, session_id)
+    if not session:
+        return JSONResponse(status_code=404, content={"success": False, "error": "Session not found"})
+    if session.finalized:
+        return JSONResponse(status_code=400, content={"success": False, "error": "Session already finalized"})
+
+    new_code = str(random.randint(1000, 9999))
+    session.session_code = new_code
+    db.commit()
+
+    logger.info(f"Session #{session_id} code regenerated to {new_code}")
+
+    return {
+        "success": True,
+        "code": new_code,
+        "session_id": session_id,
+        "message": "New 4-digit session code generated successfully."
     }
 
 
@@ -204,10 +210,11 @@ async def student_self_mark(
         })
 
     # ── 3. Validate session code ───────────────────────────────────
-    if not validate_session_code(session.id, submitted_code):
+    expected_code = (session.session_code or "").strip()
+    if not expected_code or submitted_code != expected_code:
         return JSONResponse(status_code=400, content={
             "success": False,
-            "error": "Invalid or expired 4-digit code. Check the projector screen."
+            "error": "Invalid 4-digit code. Check the projector screen for the current code."
         })
 
     # ── 4. GPS check (only if session has GPS enabled) ─────────────

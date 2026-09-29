@@ -145,6 +145,7 @@ class AttendanceRecord(Base):
     teacher_lat = Column(Float, nullable=True)
     teacher_lng = Column(Float, nullable=True)
     gps_radius = Column(Float, default=10.0, nullable=True)
+    session_code = Column(String(10), nullable=True)
 
 
 class DemoSession(Base):
