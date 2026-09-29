@@ -32,8 +32,9 @@ export default function StartSession() {
   const [recognizedStudents, setRecognizedStudents] = useState([])
   const [finalizing, setFinalizing] = useState(false)
   const [sessionSummary, setSessionSummary] = useState(null)
+  const todayStr = new Date().toISOString().split('T')[0]
   const [form, setForm] = useState({
-    date: '',
+    date: todayStr,
     subject: '',
     department: teacherDept || '',
     year: '',
@@ -268,6 +269,13 @@ export default function StartSession() {
     setSessionSummary(null)
     setSessionCode(null)
     setStatus('')
+    setForm(prev => ({
+      ...prev,
+      date: new Date().toISOString().split('T')[0],
+      subject: '',
+      year: '',
+      division: ''
+    }))
   }
 
   const inputCls = 'w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-gray-800 text-base focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all'
@@ -419,14 +427,23 @@ export default function StartSession() {
 
               <div className="space-y-4">
                 <div>
-                  <label className={labelCls}>Date</label>
-                  <input
-                    type="date"
-                    name="date"
-                    value={form.date}
-                    onChange={handleChange}
-                    className={inputCls}
-                  />
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className={labelCls}>Date</label>
+                    <span className="text-xs text-blue-600 font-semibold flex items-center gap-1">
+                      🔒 Auto-set to Today
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between bg-gray-100 border border-gray-300 rounded-xl px-4 py-3 text-gray-800 text-base font-medium shadow-2xs select-none cursor-not-allowed">
+                    <div className="flex items-center gap-2.5">
+                      <Calendar className="w-5 h-5 text-blue-600" />
+                      <span className="font-semibold">
+                        {new Date().toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}
+                      </span>
+                    </div>
+                    <span className="text-xs font-mono font-bold text-gray-500 bg-white px-2.5 py-1 rounded-md border border-gray-200">
+                      {form.date || todayStr}
+                    </span>
+                  </div>
                 </div>
 
                 <div>
