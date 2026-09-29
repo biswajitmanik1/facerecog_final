@@ -231,6 +231,63 @@ async def create_session(
     }
 
 
+@attendance_session_router.get("/session_status/{session_id}")
+async def get_session_status(
+    session_id: int,
+    current_user: dict = Depends(require_auth("teacher", "admin")),
+    db: Session = Depends(get_db)
+):
+    session = db.get(AttendanceRecord, session_id)
+    if not session:
+        return JSONResponse(status_code=404, content={"success": False, "error": "Session not found"})
+
+    students = session.students or []
+    present_students = [
+        s.get("student_name") for s in students if s.get("present")
+    ]
+
+    return {
+        "success": True,
+        "session_id": session.id,
+        "finalized": session.finalized,
+        "session_code": session.session_code,
+        "present_students": present_students,
+        "present_count": len(present_students),
+        "total_students": len(students),
+    }
+
+
+@attendance_session_router.get("/teacher_active_session")
+async def get_teacher_active_session(
+    current_user: dict = Depends(require_auth("teacher", "admin")),
+    db: Session = Depends(get_db)
+):
+    teacher_dept = get_user_department(current_user, db)
+    query = db.query(AttendanceRecord).filter(AttendanceRecord.finalized == False)
+    if teacher_dept:
+        query = query.filter(AttendanceRecord.department == teacher_dept)
+    active_session = query.order_by(AttendanceRecord.created_at.desc()).first()
+
+    if not active_session:
+        return {"success": False, "has_active_session": False}
+
+    present = [s.get("student_name") for s in (active_session.students or []) if s.get("present")]
+    return {
+        "success": True,
+        "has_active_session": True,
+        "session_id": str(active_session.id),
+        "session_code": active_session.session_code,
+        "date": active_session.date,
+        "subject": active_session.subject,
+        "department": active_session.department,
+        "year": active_session.year,
+        "division": active_session.division,
+        "present_students": present,
+        "gps_enabled": active_session.teacher_lat is not None,
+        "students_count": len(active_session.students or []),
+    }
+
+
 @attendance_session_router.post("/end_session")
 async def end_session(
     request: Request,

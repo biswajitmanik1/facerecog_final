@@ -48,22 +48,54 @@ export default function StartSession() {
   const [sessionCode, setSessionCode] = useState(null)
   const [regeneratingCode, setRegeneratingCode] = useState(false)
 
-  const fetchSessionCode = useCallback(async (sid) => {
-    if (!sid) return
-    try {
-      const res = await apiFetch(`/api/attendance/session-code/${sid}`)
-      const data = await res.json()
-      if (data.success && data.code) {
-        setSessionCode(data.code)
-      }
-    } catch (_) {}
+  // Auto-restore any existing active session for this teacher on mount
+  useEffect(() => {
+    const checkActiveSession = async () => {
+      try {
+        const res = await apiFetch('/api/attendance/teacher_active_session')
+        const data = await res.json()
+        if (data.success && data.has_active_session && data.session_id) {
+          setSessionId(data.session_id)
+          if (data.session_code) setSessionCode(data.session_code)
+          if (data.present_students) setRecognizedStudents(data.present_students)
+          setForm({
+            date: data.date || '',
+            subject: data.subject || '',
+            department: data.department || '',
+            year: data.year || '',
+            division: data.division || ''
+          })
+          setSessionActive(true)
+          setStatus(`Resumed active Session #${data.session_id} (${data.subject})`)
+        }
+      } catch (_) {}
+    }
+    checkActiveSession()
   }, [])
 
+  // Poll live session attendance status (so self-marking students appear in real time)
   useEffect(() => {
-    if (sessionId) {
-      fetchSessionCode(sessionId)
+    if (!sessionId || sessionSummary) return
+
+    const pollLiveStatus = async () => {
+      try {
+        const res = await apiFetch(`/api/attendance/session_status/${sessionId}`)
+        const data = await res.json()
+        if (data.success) {
+          if (Array.isArray(data.present_students)) {
+            setRecognizedStudents(data.present_students)
+          }
+          if (data.session_code) {
+            setSessionCode(data.session_code)
+          }
+        }
+      } catch (_) {}
     }
-  }, [sessionId, fetchSessionCode])
+
+    pollLiveStatus()
+    const timer = setInterval(pollLiveStatus, 2500)
+    return () => clearInterval(timer)
+  }, [sessionId, sessionSummary])
 
   const handleRegenerateCode = async () => {
     if (!sessionId) return
@@ -85,18 +117,39 @@ export default function StartSession() {
     }
   }
 
+  // Safe GPS capture with hard 2.5-second timeout so it NEVER freezes
   const captureGps = () => new Promise((resolve) => {
     if (!navigator.geolocation) { resolve(null); return }
     setGpsStatus('capturing')
+    let resolved = false
+    const fallbackTimer = setTimeout(() => {
+      if (!resolved) {
+        resolved = true
+        setGpsStatus('denied')
+        resolve(null)
+      }
+    }, 2500)
+
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        const gps = { lat: pos.coords.latitude, lng: pos.coords.longitude }
-        setTeacherGps(gps)
-        setGpsStatus('captured')
-        resolve(gps)
+        if (!resolved) {
+          resolved = true
+          clearTimeout(fallbackTimer)
+          const gps = { lat: pos.coords.latitude, lng: pos.coords.longitude }
+          setTeacherGps(gps)
+          setGpsStatus('captured')
+          resolve(gps)
+        }
       },
-      () => { setGpsStatus('denied'); resolve(null) },
-      { enableHighAccuracy: true, timeout: 8000 }
+      () => {
+        if (!resolved) {
+          resolved = true
+          clearTimeout(fallbackTimer)
+          setGpsStatus('denied')
+          resolve(null)
+        }
+      },
+      { enableHighAccuracy: false, timeout: 2500, maximumAge: 30000 }
     )
   })
 
@@ -123,10 +176,14 @@ export default function StartSession() {
       if (data.session_id) {
         setSessionId(data.session_id)
         if (data.session_code) setSessionCode(data.session_code)
-        setStatus(`✅ Session #${data.session_id} created! ${gps ? '📍 GPS enabled.' : '⚠️ No GPS — students can mark from anywhere.'}`)
+        if (data.students_count === 0) {
+          setStatus(`⚠️ Session #${data.session_id} created, but 0 active students are registered in ${form.year} Div ${form.division}.`)
+        } else {
+          setStatus(`✅ Session #${data.session_id} created with ${data.students_count} students! ${gps ? '📍 GPS enabled.' : '⚠️ No GPS.'}`)
+        }
         setSessionActive(true)
       } else {
-        setStatus('❌ Failed to create session')
+        setStatus(`❌ ${data.error || 'Failed to create session'}`)
       }
     } catch (err) {
       console.error(err)
