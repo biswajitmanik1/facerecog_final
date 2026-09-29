@@ -1,6 +1,21 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Camera, Play, Square, Calendar, BookOpen, Users, CheckCircle2, LayoutDashboard, MapPin, RefreshCw, Key } from 'lucide-react'
+import {
+  Camera,
+  Play,
+  Square,
+  Calendar,
+  BookOpen,
+  Users,
+  CheckCircle2,
+  LayoutDashboard,
+  MapPin,
+  RefreshCw,
+  Key,
+  XCircle,
+  AlertTriangle,
+  ArrowRight
+} from 'lucide-react'
 import CameraCapture from '../../components/CameraCapture.jsx'
 import { apiFetch } from '../../lib/api.js'
 
@@ -15,6 +30,8 @@ export default function StartSession() {
   const [status, setStatus] = useState('')
   const [facesData, setFacesData] = useState([])
   const [recognizedStudents, setRecognizedStudents] = useState([])
+  const [finalizing, setFinalizing] = useState(false)
+  const [sessionSummary, setSessionSummary] = useState(null)
   const [form, setForm] = useState({
     date: '',
     subject: '',
@@ -135,6 +152,48 @@ export default function StartSession() {
     }
   }, [sessionId, form])
 
+  const handleEndSession = async () => {
+    if (!sessionId) return
+    const confirmed = window.confirm(
+      "Are you sure you want to end and finalize this attendance session? All students not yet marked will be recorded as absent."
+    )
+    if (!confirmed) return
+
+    setFinalizing(true)
+    setStatus('Finalizing session and recording absentees...')
+    setRecognitionStarted(false)
+
+    try {
+      const res = await apiFetch('/api/attendance/end_session', {
+        method: 'POST',
+        body: JSON.stringify({ session_id: sessionId })
+      })
+      const data = await res.json()
+      if (data.success) {
+        setSessionSummary(data.statistics)
+        setStatus(`✅ Session #${sessionId} finalized successfully!`)
+      } else {
+        setStatus(`❌ ${data.error || 'Failed to finalize session'}`)
+      }
+    } catch (err) {
+      console.error(err)
+      setStatus('❌ Network error while ending session')
+    } finally {
+      setFinalizing(false)
+    }
+  }
+
+  const handleStartNewSession = () => {
+    setSessionId(null)
+    setSessionActive(false)
+    setRecognitionStarted(false)
+    setRecognizedStudents([])
+    setFacesData([])
+    setSessionSummary(null)
+    setSessionCode(null)
+    setStatus('')
+  }
+
   const inputCls = 'w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-gray-800 text-base focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all'
   const selectCls = 'w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-gray-700 text-base focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all'
   const labelCls = 'block text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2'
@@ -175,29 +234,49 @@ export default function StartSession() {
       <div className="bg-white/80 backdrop-blur-sm border-b border-gray-200 px-6 py-3.5">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row gap-4 items-center justify-between">
           <div className="flex flex-wrap items-center gap-3">
-            {sessionId && recognitionStarted && (
-              <button
-                onClick={() => { setRecognitionStarted(false); setStatus('Recognition stopped') }}
-                className="px-5 py-2.5 rounded-xl text-base font-semibold bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 transition-colors flex items-center gap-2 shadow-sm"
-              >
-                <Square className="w-4 h-4" /> Stop Recognition
-              </button>
-            )}
-            {!sessionId && !recognitionStarted && (
+            {sessionId && !sessionSummary ? (
+              <>
+                {recognitionStarted ? (
+                  <button
+                    onClick={() => { setRecognitionStarted(false); setStatus('Camera paused') }}
+                    className="px-4 py-2.5 rounded-xl text-sm font-semibold bg-gray-100 hover:bg-gray-200 text-gray-700 transition-colors flex items-center gap-2 shadow-xs cursor-pointer"
+                  >
+                    <Square className="w-4 h-4" /> Pause Camera
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => { setRecognitionStarted(true); setStatus('Starting live recognition...') }}
+                    className="px-4 py-2.5 rounded-xl text-sm font-semibold bg-emerald-600 hover:bg-emerald-700 text-white transition-colors flex items-center gap-2 shadow-xs cursor-pointer"
+                  >
+                    <Play className="w-4 h-4" /> Start Camera
+                  </button>
+                )}
+
+                <button
+                  onClick={handleEndSession}
+                  disabled={finalizing}
+                  className="px-5 py-2.5 rounded-xl text-sm font-bold bg-red-600 hover:bg-red-700 text-white transition-colors flex items-center gap-2 shadow-sm cursor-pointer disabled:opacity-50"
+                  title="Finalize attendance and record absentees"
+                >
+                  <Square className="w-4 h-4 fill-current" />
+                  {finalizing ? 'Ending...' : 'End & Finalize Session'}
+                </button>
+              </>
+            ) : !sessionId && !recognitionStarted ? (
               <button
                 onClick={() => { setSessionActive(false); setRecognitionStarted(true); setStatus('Starting demo recognition...') }}
-                className="px-5 py-2.5 rounded-xl text-base font-semibold bg-purple-600 hover:bg-purple-700 text-white transition-colors flex items-center gap-2 shadow-sm"
+                className="px-5 py-2.5 rounded-xl text-base font-semibold bg-purple-600 hover:bg-purple-700 text-white transition-colors flex items-center gap-2 shadow-sm cursor-pointer"
               >
                 <Play className="w-4 h-4" /> Start Demo Recognition
               </button>
-            )}
+            ) : null}
           </div>
 
           <div className="flex items-center gap-4 text-base">
             <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-white border border-gray-200 shadow-sm">
               <span className="text-gray-500 font-medium">Session:</span>
-              <span className={`font-semibold ${recognitionStarted ? 'text-green-600' : sessionId ? 'text-amber-600' : 'text-gray-700'}`}>
-                {recognitionStarted ? 'Active' : sessionId ? 'Ready' : 'Not Created'}
+              <span className={`font-semibold ${sessionSummary ? 'text-indigo-600' : recognitionStarted ? 'text-green-600' : sessionId ? 'text-emerald-600' : 'text-gray-700'}`}>
+                {sessionSummary ? 'Finalized' : recognitionStarted ? 'Camera Live' : sessionId ? 'Active' : 'Not Created'}
               </span>
             </div>
             <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-white border border-gray-200 shadow-sm">
@@ -210,7 +289,45 @@ export default function StartSession() {
 
       {/* Main Container */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-6">
-        {!sessionId ? (
+        {sessionSummary ? (
+          <div className="max-w-xl mx-auto bg-white rounded-3xl p-8 shadow-sm border border-gray-100 text-center animate-in zoom-in-95 duration-200">
+            <div className="w-20 h-20 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-4 border-2 border-emerald-200">
+              <CheckCircle2 className="w-10 h-10 text-emerald-600" />
+            </div>
+            <h2 className="text-2xl font-black text-gray-900 mb-1">Session Finalized!</h2>
+            <p className="text-sm text-gray-500 mb-6">Attendance has been recorded and finalized in the database.</p>
+
+            <div className="grid grid-cols-3 gap-3 mb-8">
+              <div className="p-4 rounded-2xl bg-emerald-50/80 border border-emerald-100 text-center">
+                <p className="text-xs font-bold text-emerald-700 uppercase tracking-wider mb-1">Present</p>
+                <p className="text-3xl font-black text-emerald-800">{sessionSummary.present_count ?? recognizedStudents.length}</p>
+              </div>
+              <div className="p-4 rounded-2xl bg-rose-50/80 border border-rose-100 text-center">
+                <p className="text-xs font-bold text-rose-700 uppercase tracking-wider mb-1">Absent</p>
+                <p className="text-3xl font-black text-rose-800">{sessionSummary.absent_count ?? 0}</p>
+              </div>
+              <div className="p-4 rounded-2xl bg-indigo-50/80 border border-indigo-100 text-center">
+                <p className="text-xs font-bold text-indigo-700 uppercase tracking-wider mb-1">Total</p>
+                <p className="text-3xl font-black text-indigo-800">{sessionSummary.total_students ?? 0}</p>
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-3">
+              <button
+                onClick={handleStartNewSession}
+                className="flex-1 py-3.5 rounded-xl font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition-colors shadow-sm flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <Play className="w-4 h-4" /> Start New Session
+              </button>
+              <button
+                onClick={() => navigate('/teacher/dashboard')}
+                className="flex-1 py-3.5 rounded-xl font-bold text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <LayoutDashboard className="w-4 h-4" /> Go to Dashboard
+              </button>
+            </div>
+          </div>
+        ) : !sessionId ? (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Session Creation Form */}
             <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
@@ -445,12 +562,23 @@ export default function StartSession() {
                   </div>
                 </div>
 
-                <button
-                  onClick={() => navigate('/dashboard')}
-                  className="mt-3 w-full py-2.5 rounded-xl font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 transition-colors text-sm flex items-center justify-center gap-2"
-                >
-                  <LayoutDashboard className="w-4 h-4" /> Go to Dashboard (Keep Session Active)
-                </button>
+                <div className="flex flex-col gap-2 mt-4">
+                  <button
+                    onClick={handleEndSession}
+                    disabled={finalizing}
+                    className="w-full py-3.5 rounded-xl font-bold text-white bg-red-600 hover:bg-red-700 transition-colors text-base flex items-center justify-center gap-2 shadow-sm cursor-pointer disabled:opacity-50"
+                  >
+                    <Square className="w-4 h-4 fill-current" />
+                    {finalizing ? 'Finalizing Session...' : 'End & Finalize Session'}
+                  </button>
+
+                  <button
+                    onClick={() => navigate('/teacher/dashboard')}
+                    className="w-full py-2.5 rounded-xl font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 transition-colors text-sm flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <LayoutDashboard className="w-4 h-4" /> Go to Dashboard (Keep Active)
+                  </button>
+                </div>
               </div>
 
               {/* Status card */}
