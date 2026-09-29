@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import SiteFooter from './components/SiteFooter.jsx'
 
 import HomePage from './pages/HomePage.jsx'
@@ -46,10 +46,16 @@ export default function App() {
 
             <Route path="/teacher/dashboard" element={<TeacherDashboard />} />
             <Route path="/teacher/start-session" element={<StartSession />} />
+            <Route path="/teacher/start session" element={<StartSession />} />
+            <Route path="/teacher/start_session" element={<StartSession />} />
+            <Route path="/teacher/startsession" element={<StartSession />} />
             <Route path="/teacher/updatedetails" element={<TeacherUpdateDetails />} />
 
             <Route path="/attendance/defaulters" element={<DefaulterList />} />
             <Route path="/defaulter-list" element={<DefaulterList />} />
+
+            {/* Catch-all redirect to prevent blank page on mistyped URLs */}
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </div>
         <SiteFooter />

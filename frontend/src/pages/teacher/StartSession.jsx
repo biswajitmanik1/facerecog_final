@@ -40,6 +40,12 @@ export default function StartSession() {
     division: ''
   })
 
+  const departments = ['Computer Science', 'Information Technology', 'Electronics', 'Mechanical', 'Civil']
+  const years = ['1st Year', '2nd Year', '3rd Year', '4th Year']
+  const divisions = ['A', 'B', 'C', 'D']
+
+  const handleChange = (e) => setForm(prev => ({ ...prev, [e.target.name]: e.target.value }))
+
   // GPS state
   const [gpsStatus, setGpsStatus] = useState('idle') // idle | capturing | captured | denied
   const [teacherGps, setTeacherGps] = useState(null)
@@ -680,25 +686,29 @@ export default function StartSession() {
 
                 {recognizedStudents.length > 0 ? (
                   <div className="max-h-72 overflow-y-auto space-y-2 pr-1">
-                    {recognizedStudents.map((student, index) => (
-                      <div
-                        key={student}
-                        className="flex items-center justify-between p-3.5 rounded-xl bg-emerald-50/60 border border-emerald-100 hover:bg-emerald-50 transition-colors"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center text-white font-bold text-sm">
-                            {index + 1}
+                    {recognizedStudents.map((student, index) => {
+                      const studentName = typeof student === 'string' ? student : (student?.student_name || student?.name || 'Student')
+                      const studentKey = typeof student === 'string' ? `${student}_${index}` : (student?.student_id || index)
+                      return (
+                        <div
+                          key={studentKey}
+                          className="flex items-center justify-between p-3.5 rounded-xl bg-emerald-50/60 border border-emerald-100 hover:bg-emerald-50 transition-colors"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center text-white font-bold text-sm">
+                              {index + 1}
+                            </div>
+                            <div>
+                              <p className="text-base font-bold text-gray-800">{studentName}</p>
+                              <p className="text-xs font-semibold text-emerald-600 flex items-center gap-1">
+                                <CheckCircle2 className="w-3 h-3" /> Marked Present
+                              </p>
+                            </div>
                           </div>
-                          <div>
-                            <p className="text-base font-bold text-gray-800">{student}</p>
-                            <p className="text-xs font-semibold text-emerald-600 flex items-center gap-1">
-                              <CheckCircle2 className="w-3 h-3" /> Marked Present
-                            </p>
-                          </div>
+                          <span className="text-xs text-gray-500 font-mono">Recorded</span>
                         </div>
-                        <span className="text-xs text-gray-500 font-mono">Recorded</span>
-                      </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 ) : (
                   <div className="text-center py-12 text-gray-500">
