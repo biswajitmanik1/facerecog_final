@@ -21,6 +21,7 @@ from student.registration import student_registration_router
 from student.updatedetails import student_update_router
 from student.demo_session import demo_session_router
 from student.view_attendance import attendance_router
+from student.self_mark import self_mark_router
 from teacher.attendance_records import attendance_session_router
 
 # Logging setup
@@ -200,8 +201,21 @@ app.include_router(student_registration_router)
 app.include_router(student_update_router)
 app.include_router(demo_session_router)
 app.include_router(attendance_router)
+app.include_router(self_mark_router)
 app.include_router(attendance_session_router)
 app.include_router(admin_router)
+
+# GPS column migration (adds columns if they don't exist yet)
+try:
+    from sqlalchemy import text
+    with engine.connect() as conn:
+        conn.execute(text("ALTER TABLE attendance_records ADD COLUMN IF NOT EXISTS teacher_lat FLOAT"))
+        conn.execute(text("ALTER TABLE attendance_records ADD COLUMN IF NOT EXISTS teacher_lng FLOAT"))
+        conn.execute(text("ALTER TABLE attendance_records ADD COLUMN IF NOT EXISTS gps_radius FLOAT DEFAULT 200"))
+        conn.commit()
+    logger.info("GPS columns ready in attendance_records")
+except Exception as e:
+    logger.warning(f"GPS migration skipped: {e}")
 
 if __name__ == "__main__":
     import uvicorn

@@ -142,6 +142,9 @@ class AttendanceRecord(Base):
     finalized = Column(Boolean, default=False)
     ended_at = Column(DateTime, nullable=True)
     students = Column(JSONB, default=list)
+    teacher_lat = Column(Float, nullable=True)
+    teacher_lng = Column(Float, nullable=True)
+    gps_radius = Column(Float, default=200.0, nullable=True)
 
 
 class DemoSession(Base):

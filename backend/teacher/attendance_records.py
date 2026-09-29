@@ -213,12 +213,19 @@ async def create_session(
         created_at=datetime.now(),
         finalized=False,
         ended_at=None,
-        students=students_list
+        students=students_list,
+        teacher_lat=data.get("teacher_lat"),
+        teacher_lng=data.get("teacher_lng"),
+        gps_radius=float(data.get("gps_radius", 200)),
     )
     db.add(session)
     db.commit()
 
-    return {"session_id": str(session.id), "students_count": len(students_list)}
+    return {
+        "session_id": str(session.id),
+        "students_count": len(students_list),
+        "gps_enabled": session.teacher_lat is not None,
+    }
 
 
 @attendance_session_router.post("/end_session")

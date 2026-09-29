@@ -1,6 +1,6 @@
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Camera, Play, Square, Calendar, BookOpen, Users, CheckCircle2, LayoutDashboard } from 'lucide-react'
+import { Camera, Play, Square, Calendar, BookOpen, Users, CheckCircle2, LayoutDashboard, MapPin, RefreshCw, Key } from 'lucide-react'
 import CameraCapture from '../../components/CameraCapture.jsx'
 import { apiFetch } from '../../lib/api.js'
 
@@ -15,13 +15,22 @@ export default function StartSession() {
   const [status, setStatus] = useState('')
   const [facesData, setFacesData] = useState([])
   const [recognizedStudents, setRecognizedStudents] = useState([])
-  const [form, setForm] = useState({ 
-    date: '', 
-    subject: '', 
-    department: teacherDept || '', 
-    year: '', 
-    division: '' 
+  const [form, setForm] = useState({
+    date: '',
+    subject: '',
+    department: teacherDept || '',
+    year: '',
+    division: ''
   })
+
+  // GPS state
+  const [gpsStatus, setGpsStatus] = useState('idle') // idle | capturing | captured | denied
+  const [teacherGps, setTeacherGps] = useState(null)
+
+  // Session code state
+  const [sessionCode, setSessionCode] = useState(null)
+  const [codeCountdown, setCodeCountdown] = useState(60)
+  const codeIntervalRef = useRef(null)
 
   const departments = ['Computer Science', 'Information Technology', 'Electronics', 'Mechanical', 'Civil']
   const years = ['1st Year', '2nd Year', '3rd Year', '4th Year']
@@ -29,20 +38,62 @@ export default function StartSession() {
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value })
 
+  // Poll session code every second when session is active
+  useEffect(() => {
+    if (!sessionId) return
+    const fetchCode = async () => {
+      try {
+        const res = await apiFetch(`/api/attendance/session-code/${sessionId}`)
+        const data = await res.json()
+        if (data.success) {
+          setSessionCode(data.code)
+          setCodeCountdown(data.seconds_remaining)
+        }
+      } catch (_) {}
+    }
+    fetchCode()
+    codeIntervalRef.current = setInterval(fetchCode, 1000)
+    return () => clearInterval(codeIntervalRef.current)
+  }, [sessionId])
+
+  const captureGps = () => new Promise((resolve) => {
+    if (!navigator.geolocation) { resolve(null); return }
+    setGpsStatus('capturing')
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const gps = { lat: pos.coords.latitude, lng: pos.coords.longitude }
+        setTeacherGps(gps)
+        setGpsStatus('captured')
+        resolve(gps)
+      },
+      () => { setGpsStatus('denied'); resolve(null) },
+      { enableHighAccuracy: true, timeout: 8000 }
+    )
+  })
+
   const createSession = async () => {
     const activeDept = teacherDept || form.department
     if (!form.date || !form.subject || !activeDept || !form.year || !form.division) {
       setStatus('Please fill all fields')
       return
     }
+    setStatus('Capturing your location...')
+    const gps = await captureGps()
+
     setStatus('Creating session...')
     try {
-      const payload = { ...form, department: activeDept }
+      const payload = {
+        ...form,
+        department: activeDept,
+        teacher_lat: gps?.lat ?? null,
+        teacher_lng: gps?.lng ?? null,
+        gps_radius: 200,
+      }
       const res = await apiFetch('/api/attendance/create_session', { method: 'POST', body: JSON.stringify(payload) })
       const data = await res.json()
       if (data.session_id) {
         setSessionId(data.session_id)
-        setStatus('✅ Session created! Click Start Recognition.')
+        setStatus(`✅ Session #${data.session_id} created! ${gps ? '📍 GPS enabled.' : '⚠️ No GPS — students can mark from anywhere.'}`)
         setSessionActive(true)
       } else {
         setStatus('❌ Failed to create session')
@@ -348,6 +399,44 @@ export default function StartSession() {
 
             {/* Results Column */}
             <div className="space-y-6">
+
+              {/* Session Code Panel */}
+              <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <Key className="w-5 h-5 text-indigo-600" />
+                    <h3 className="text-lg font-bold text-gray-800">Session Code</h3>
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600 font-semibold border border-indigo-100">Show on Projector</span>
+                  </div>
+                  {teacherGps ? (
+                    <span className="flex items-center gap-1 text-xs text-emerald-600 font-semibold">
+                      <MapPin className="w-3.5 h-3.5" /> GPS ON
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-1 text-xs text-amber-600 font-semibold">
+                      <MapPin className="w-3.5 h-3.5" /> No GPS
+                    </span>
+                  )}
+                </div>
+                <div className="bg-indigo-600 rounded-2xl py-6 px-4 text-center mb-3">
+                  <p className="text-indigo-200 text-sm font-semibold mb-1 uppercase tracking-widest">Session #{sessionId}</p>
+                  <div className="flex items-center justify-center gap-3">
+                    {(sessionCode || '----').split('').map((digit, i) => (
+                      <div key={i} className="w-14 h-16 bg-white rounded-xl flex items-center justify-center text-4xl font-black text-indigo-700 shadow-lg">
+                        {digit}
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-indigo-200 text-sm mt-3 font-medium">
+                    Changes in <span className="text-white font-black">{codeCountdown}s</span>
+                  </p>
+                </div>
+                <div className="w-full bg-indigo-100 rounded-full h-2">
+                  <div className="bg-indigo-500 h-2 rounded-full transition-all duration-1000" style={{ width: `${(codeCountdown / 60) * 100}%` }} />
+                </div>
+                <p className="text-xs text-gray-400 text-center mt-2">Students: open app → Mark Attendance → enter Session ID + code + selfie</p>
+              </div>
+
               {/* Status card */}
               <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
                 <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Recognition Status</h3>

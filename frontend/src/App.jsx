@@ -15,6 +15,7 @@ import StudentRegistrationForm from './pages/student/StudentRegistrationForm.jsx
 import UpdateStudentDetails from './pages/student/UpdateStudentDetails.jsx'
 import DemoSession from './pages/student/DemoSession.jsx'
 import ViewAttendance from './pages/student/ViewAttendance.jsx'
+import SelfMarkAttendance from './pages/student/SelfMarkAttendance.jsx'
 
 import TeacherDashboard from './pages/teacher/TeacherDashboard.jsx'
 import StartSession from './pages/teacher/StartSession.jsx'
@@ -41,6 +42,7 @@ export default function App() {
             <Route path="/student/updatedetails" element={<UpdateStudentDetails />} />
             <Route path="/student/demo-session" element={<DemoSession />} />
             <Route path="/student/view-attendance" element={<ViewAttendance />} />
+            <Route path="/student/mark-attendance" element={<SelfMarkAttendance />} />
 
             <Route path="/teacher/dashboard" element={<TeacherDashboard />} />
             <Route path="/teacher/start-session" element={<StartSession />} />
