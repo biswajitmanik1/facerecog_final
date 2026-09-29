@@ -33,18 +33,18 @@ self_mark_router = APIRouter()
 # ─── Session Code (rotates every 60 seconds) ──────────────────────
 
 def generate_session_code(session_id: int) -> str:
-    """Deterministic 4-digit code per session per minute."""
-    current_minute = int(time.time() // 60)
-    raw = f"ams-session-{session_id}-{current_minute}"
+    """Deterministic 4-digit code per session — valid for 5 minutes."""
+    current_window = int(time.time() // 300)
+    raw = f"ams-session-{session_id}-{current_window}"
     hash_val = int(hashlib.sha256(raw.encode()).hexdigest(), 16)
     return str(hash_val % 10000).zfill(4)
 
 
 def validate_session_code(session_id: int, submitted_code: str) -> bool:
-    """Accept current minute and previous minute (grace period for slow typers)."""
-    current_minute = int(time.time() // 60)
+    """Accept current window and previous window (grace period)."""
+    current_window = int(time.time() // 300)
     for offset in [0, -1]:
-        raw = f"ams-session-{session_id}-{current_minute + offset}"
+        raw = f"ams-session-{session_id}-{current_window + offset}"
         hash_val = int(hashlib.sha256(raw.encode()).hexdigest(), 16)
         if str(hash_val % 10000).zfill(4) == submitted_code:
             return True
@@ -52,7 +52,7 @@ def validate_session_code(session_id: int, submitted_code: str) -> bool:
 
 
 def seconds_until_refresh() -> int:
-    return 60 - (int(time.time()) % 60)
+    return 300 - (int(time.time()) % 300)
 
 
 # ─── GPS Haversine Distance ────────────────────────────────────────
@@ -75,10 +75,6 @@ async def get_session_code(
     current_user: dict = Depends(require_auth("teacher", "admin")),
     db: DBSession = Depends(get_db)
 ):
-    """
-    Teacher polls this every second to display the rotating code on screen.
-    Returns the current 4-digit code + seconds until it changes.
-    """
     session = db.get(AttendanceRecord, session_id)
     if not session:
         return JSONResponse(status_code=404, content={"success": False, "error": "Session not found"})
@@ -95,7 +91,53 @@ async def get_session_code(
     }
 
 
-# ─── Student: Self-Mark Attendance ────────────────────────────────
+# ─── Student: Auto-detect Active Session ──────────────────────────
+
+@self_mark_router.get('/api/attendance/my-active-session')
+async def get_my_active_session(
+    current_user: dict = Depends(require_auth("student")),
+    db: DBSession = Depends(get_db)
+):
+    """Returns the currently active (non-finalized) session for the student's class."""
+    student_email = current_user.get("email")
+    student = db.query(Student).filter_by(email=student_email).first()
+    if not student:
+        return JSONResponse(status_code=404, content={"success": False, "error": "Student profile not found. Please complete registration first."})
+
+    query = db.query(AttendanceRecord).filter(AttendanceRecord.finalized == False)
+    if student.department:
+        query = query.filter(AttendanceRecord.department == student.department)
+    if student.year:
+        query = query.filter(AttendanceRecord.year == student.year)
+    if student.division:
+        query = query.filter(AttendanceRecord.division == student.division)
+
+    session = query.order_by(AttendanceRecord.created_at.desc()).first()
+
+    if not session:
+        return JSONResponse(status_code=404, content={
+            "success": False,
+            "error": "No active session found for your class right now. Ask your teacher to start a session."
+        })
+
+    # Check if already marked
+    already_marked = any(
+        e.get("student_id") == student.student_id and e.get("present")
+        for e in (session.students or [])
+    )
+
+    return {
+        "success": True,
+        "session_id": session.id,
+        "subject": session.subject,
+        "date": session.date,
+        "department": session.department,
+        "year": session.year,
+        "division": session.division,
+        "gps_enabled": session.teacher_lat is not None,
+        "already_marked": already_marked,
+    }
+
 
 @self_mark_router.post('/api/attendance/student-self-mark')
 async def student_self_mark(
@@ -117,27 +159,58 @@ async def student_self_mark(
     student_lat = data.get("lat")
     student_lng = data.get("lng")
 
-    if not all([session_id, submitted_code, image_b64]):
+    if not submitted_code or not image_b64:
         return JSONResponse(status_code=400, content={
             "success": False,
-            "error": "session_id, code, and image are required"
+            "error": "4-digit code and face image are required."
         })
 
-    # ── 1. Validate session code ───────────────────────────────────
-    if not validate_session_code(int(session_id), submitted_code):
+    # ── 1. Get student record ──────────────────────────────────────
+    student_email = current_user.get("email")
+    student = db.query(Student).filter_by(email=student_email).first()
+    if not student:
+        return JSONResponse(status_code=404, content={
+            "success": False,
+            "error": "Student profile not found. Please complete your registration first."
+        })
+    if not student.face_registered or not student.embeddings:
         return JSONResponse(status_code=400, content={
             "success": False,
-            "error": "Invalid or expired code. Check the 4-digit code shown on the projector."
+            "error": "Face not enrolled. Please register your face biometrics first."
         })
 
-    # ── 2. Get session ─────────────────────────────────────────────
-    session = db.get(AttendanceRecord, int(session_id))
+    # ── 2. Get / Auto-detect session ───────────────────────────────
+    if session_id:
+        session = db.get(AttendanceRecord, int(session_id))
+    else:
+        query = db.query(AttendanceRecord).filter(AttendanceRecord.finalized == False)
+        if student.department:
+            query = query.filter(AttendanceRecord.department == student.department)
+        if student.year:
+            query = query.filter(AttendanceRecord.year == student.year)
+        if student.division:
+            query = query.filter(AttendanceRecord.division == student.division)
+        session = query.order_by(AttendanceRecord.created_at.desc()).first()
+
     if not session:
-        return JSONResponse(status_code=404, content={"success": False, "error": "Session not found"})
+        return JSONResponse(status_code=404, content={
+            "success": False,
+            "error": "No active attendance session found for your class right now."
+        })
     if session.finalized:
-        return JSONResponse(status_code=400, content={"success": False, "error": "This session has already ended."})
+        return JSONResponse(status_code=400, content={
+            "success": False,
+            "error": "This attendance session has already ended."
+        })
 
-    # ── 3. GPS check (only if session has GPS enabled) ─────────────
+    # ── 3. Validate session code ───────────────────────────────────
+    if not validate_session_code(session.id, submitted_code):
+        return JSONResponse(status_code=400, content={
+            "success": False,
+            "error": "Invalid or expired 4-digit code. Check the projector screen."
+        })
+
+    # ── 4. GPS check (only if session has GPS enabled) ─────────────
     if session.teacher_lat is not None and session.teacher_lng is not None:
         if student_lat is None or student_lng is None:
             return JSONResponse(status_code=400, content={
@@ -154,20 +227,6 @@ async def student_self_mark(
                 "success": False,
                 "error": f"You are {int(distance)}m away from the classroom. Must be within {int(radius)}m."
             })
-
-    # ── 4. Get student record ──────────────────────────────────────
-    student_email = current_user.get("email")
-    student = db.query(Student).filter_by(email=student_email).first()
-    if not student:
-        return JSONResponse(status_code=404, content={
-            "success": False,
-            "error": "Student profile not found. Please complete your registration first."
-        })
-    if not student.face_registered or not student.embeddings:
-        return JSONResponse(status_code=400, content={
-            "success": False,
-            "error": "Face not enrolled. Please register your face biometrics first."
-        })
 
     # ── 5. Department check ────────────────────────────────────────
     if (session.department and student.department and

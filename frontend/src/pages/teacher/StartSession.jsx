@@ -432,9 +432,25 @@ export default function StartSession() {
                   </p>
                 </div>
                 <div className="w-full bg-indigo-100 rounded-full h-2">
-                  <div className="bg-indigo-500 h-2 rounded-full transition-all duration-1000" style={{ width: `${(codeCountdown / 60) * 100}%` }} />
+                  <div className="bg-indigo-500 h-2 rounded-full transition-all duration-1000" style={{ width: `${(codeCountdown / 300) * 100}%` }} />
                 </div>
-                <p className="text-xs text-gray-400 text-center mt-2">Students: open app → Mark Attendance → enter Session ID + code + selfie</p>
+                <p className="text-xs text-gray-400 text-center mt-2">Students: open app → Mark Attendance → enter 4-digit code + selfie</p>
+
+                {/* Navigation tip */}
+                <div className="mt-3 p-3 rounded-xl bg-amber-50 border border-amber-200 flex items-start gap-2">
+                  <span className="text-amber-500 mt-0.5">💡</span>
+                  <div>
+                    <p className="text-xs font-bold text-amber-800">Session stays active in the background</p>
+                    <p className="text-xs text-amber-700 mt-0.5">You can go to Dashboard or switch accounts — the session code keeps working. Come back to end the session when done.</p>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => navigate('/dashboard')}
+                  className="mt-3 w-full py-2.5 rounded-xl font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 transition-colors text-sm flex items-center justify-center gap-2"
+                >
+                  <LayoutDashboard className="w-4 h-4" /> Go to Dashboard (Keep Session Active)
+                </button>
               </div>
 
               {/* Status card */}

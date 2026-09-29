@@ -611,6 +611,13 @@ export default function DashboardPage() {
               <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
             </button>
             <button
+              onClick={() => navigate('/student/mark-attendance')}
+              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl transition-colors text-base font-semibold shadow-sm"
+            >
+              <Camera className="w-4 h-4" />
+              Mark Attendance
+            </button>
+            <button
               onClick={handleLogout}
               className="flex items-center gap-2 px-4 py-2 text-red-600 border border-red-200 bg-red-50/50 hover:bg-red-100 rounded-xl transition-colors text-base font-semibold"
             >
