@@ -211,7 +211,7 @@ try:
     with engine.connect() as conn:
         conn.execute(text("ALTER TABLE attendance_records ADD COLUMN IF NOT EXISTS teacher_lat FLOAT"))
         conn.execute(text("ALTER TABLE attendance_records ADD COLUMN IF NOT EXISTS teacher_lng FLOAT"))
-        conn.execute(text("ALTER TABLE attendance_records ADD COLUMN IF NOT EXISTS gps_radius FLOAT DEFAULT 200"))
+        conn.execute(text("ALTER TABLE attendance_records ADD COLUMN IF NOT EXISTS gps_radius FLOAT DEFAULT 10"))
         conn.commit()
     logger.info("GPS columns ready in attendance_records")
 except Exception as e:

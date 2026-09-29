@@ -87,7 +87,7 @@ export default function StartSession() {
         department: activeDept,
         teacher_lat: gps?.lat ?? null,
         teacher_lng: gps?.lng ?? null,
-        gps_radius: 200,
+        gps_radius: 10,
       }
       const res = await apiFetch('/api/attendance/create_session', { method: 'POST', body: JSON.stringify(payload) })
       const data = await res.json()

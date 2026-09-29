@@ -221,7 +221,7 @@ async def student_self_mark(
             float(student_lat), float(student_lng),
             session.teacher_lat, session.teacher_lng
         )
-        radius = session.gps_radius or 200
+        radius = session.gps_radius or 10
         if distance > radius:
             return JSONResponse(status_code=403, content={
                 "success": False,

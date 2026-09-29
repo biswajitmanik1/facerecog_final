@@ -216,7 +216,7 @@ async def create_session(
         students=students_list,
         teacher_lat=data.get("teacher_lat"),
         teacher_lng=data.get("teacher_lng"),
-        gps_radius=float(data.get("gps_radius", 200)),
+        gps_radius=float(data.get("gps_radius", 10)),
     )
     db.add(session)
     db.commit()
